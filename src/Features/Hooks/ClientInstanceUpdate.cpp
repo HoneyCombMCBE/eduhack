@@ -1,10 +1,8 @@
 #include "ClientInstanceUpdate.h"
 
-#include "../../Core/Log.h"
 #include "../../Memory/Hooks.h"
 #include "../../Client/ClientInstance.h"
 #include "../../Client/ClientStore.h"
-#include "../../Input/KeyInput.h"
 #include "../Fly.h"
 
 #include <libhat/scanner.hpp>
@@ -22,54 +20,29 @@ using UpdateFn = bool (__fastcall*)(ClientInstance*, bool);
 static UpdateFn o_update = nullptr;
 static void* g_target = nullptr;
 
-static bool g_loggedPlayer = false;
-
 static bool __fastcall hk_update(ClientInstance* self, bool isInitFinished) {
-    if (!edu::hasClientInstance()) {
-        LOG_INFO("ClientInstanceUpdate: captured self=%p", self);
+    if (!edu::hasClientInstance())
         edu::captureClientInstance(self);
-    }
 
     void* player = self->getLocalPlayer();
-
-    if (!g_loggedPlayer && player) {
-        LOG_INFO("getLocalPlayer() = %p", player);
-        g_loggedPlayer = true;
-    }
-
-    if (player) {
-        if (edu::input::isJustPressed('G'))
-            edu::features::toggleFly();
-
+    if (player)
         edu::features::tickFly(player);
-    }
 
     return o_update(self, isInitFinished);
 }
 
 bool install() {
-    LOG_INFO("ClientInstanceUpdate: scanning for signature...");
     hat::scan_result result = hat::find_pattern(kSig, ".text");
-    if (!result.get()) {
-        LOG_ERROR("ClientInstanceUpdate: signature not found");
+    if (!result.get())
         return false;
-    }
+
     g_target = const_cast<std::byte*>(result.get());
-    LOG_INFO("ClientInstanceUpdate: target = %p", g_target);
 
-    if (!Hooks::create(g_target,
-                       reinterpret_cast<void*>(&hk_update),
-                       &o_update)) {
-        LOG_ERROR("ClientInstanceUpdate: MH_CreateHook failed");
+    if (!Hooks::create(g_target, reinterpret_cast<void*>(&hk_update), &o_update))
         return false;
-    }
-    if (!Hooks::enable(g_target)) {
-        LOG_ERROR("ClientInstanceUpdate: MH_EnableHook failed");
+    if (!Hooks::enable(g_target))
         return false;
-    }
 
-    LOG_INFO("ClientInstanceUpdate: hook installed & enabled "
-             "(trampoline=%p)", reinterpret_cast<void*>(o_update));
     return true;
 }
 
@@ -77,7 +50,6 @@ void remove() {
     if (g_target) {
         MH_DisableHook(g_target);
         MH_RemoveHook(g_target);
-        LOG_INFO("ClientInstanceUpdate: hook removed");
     }
 }
 

@@ -33,6 +33,42 @@ struct RuntimeIDComponent : IEntityComponent {
     int64_t runtimeId;
 };
 
+enum class MovementAbilities : int {
+    Flying                  = 0,
+    MayFly                  = 1,
+    Instabuild              = 2,
+    IgnoresBorderCollisions = 3,
+    NoClip                  = 4,
+    WorldBuilder            = 5,
+    FlySpeed                = 6,
+    VerticalFlySpeed        = 7,
+    Count                   = 8,
+};
+
+struct MovementAbilitiesComponent : IEntityComponent {
+    static constexpr hat::fixed_string type_name = "struct MovementAbilitiesComponent";
+    bool flying;
+    bool mayFly;
+    bool instabuild;
+    bool ignoresBorderCollisions;
+    bool noClip;
+    bool worldBuilder;
+    float flySpeed;
+    float verticalFlySpeed;
+};
+
+// LayeredAbilities: PermissionsHandler(24) + std::array<Abilities,6>(1440) = 1464 bytes
+// We treat it as an opaque blob — only setAbilities needs the reference.
+struct LayeredAbilities {
+    char data[1464];
+};
+
+// The ECS component that holds the player's LayeredAbilities.
+struct AbilitiesComponent : IEntityComponent {
+    static constexpr hat::fixed_string type_name = "struct AbilitiesComponent";
+    LayeredAbilities abilities;
+};
+
 // MSVC uses "struct Foo" / "class Foo" in type names while GCC uses bare "Foo".
 // Specialize entt::type_hash for all IEntityComponent types to compute the hash
 // from the MSVC-formatted type_name member, ensuring compatibility with the

@@ -1,48 +1,49 @@
 #include "Fly.h"
-#include "../Core/Log.h"
-#include "../Input/KeyInput.h"
 #include "../Minecraft/Actor.h"
 #include "../Minecraft/Components.h"
 
-#include <windows.h>
+#include <cstring>
 
 namespace edu::features {
 
-static bool g_enabled = false;
+bool g_flyEnabled = false;
 
-bool isFlyEnabled() { return g_enabled; }
+bool isFlyEnabled() { return g_flyEnabled; }
 
 bool toggleFly() {
-    g_enabled = !g_enabled;
-    LOG_INFO("Fly %s", g_enabled ? "ON" : "OFF");
-    return g_enabled;
+    g_flyEnabled = !g_flyEnabled;
+    return g_flyEnabled;
 }
 
-static float g_hoverY = 0.0f;
-static bool g_hasHoverY = false;
+static constexpr size_t kLayerStart  = 8;
+static constexpr size_t kLayerSize   = 240;
+static constexpr size_t kAbilitySize = 12;
+static constexpr size_t kFlyingIdx   = 9;
+static constexpr size_t kMayFlyIdx   = 10;
+
+using SetAbilitiesFn = void(__fastcall*)(void*, const LayeredAbilities*);
 
 void tickFly(void* localPlayer) {
-    if (!localPlayer) return;
+    if (!localPlayer || !g_flyEnabled) return;
 
     auto* actor = reinterpret_cast<Actor*>(localPlayer);
     auto& ctx = actor->getEntity();
-    auto* svc = ctx.tryGetComponent<StateVectorComponent>();
-    if (!svc) return;
+    auto* ac = ctx.tryGetComponent<AbilitiesComponent>();
+    if (!ac) return;
 
-    if (!g_enabled) {
-        g_hasHoverY = false;
-        return;
+    LayeredAbilities copy;
+    std::memcpy(&copy, &ac->abilities, sizeof(LayeredAbilities));
+
+    bool val = true;
+    for (int layer = 0; layer < 6; layer++) {
+        size_t base = kLayerStart + layer * kLayerSize;
+        std::memcpy(copy.data + base + kMayFlyIdx * kAbilitySize, &val, sizeof(bool));
+        std::memcpy(copy.data + base + kFlyingIdx * kAbilitySize, &val, sizeof(bool));
     }
 
-    constexpr float speed = 0.6f;
-
-    if (input::isHeld(VK_SPACE)) {
-        svc->velocity.y = speed;
-    } else if (input::isHeld(VK_SHIFT)) {
-        svc->velocity.y = -speed;
-    } else {
-        svc->velocity.y = 0.0f;
-    }
+    auto vtable = *reinterpret_cast<void***>(localPlayer);
+    auto setAbilities = reinterpret_cast<SetAbilitiesFn>(vtable[241]);
+    setAbilities(localPlayer, &copy);
 }
 
 } // namespace edu::features
