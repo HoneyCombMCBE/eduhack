@@ -2,79 +2,212 @@
 #include "../GUI/ClickGUI.h"
 #include "../GUI/Notifications.h"
 #include "../Input/KeyInput.h"
-
 #include <d3d11.h>
-#include <dxgi.h>
+#include <d3d11on12.h>
+#include <d3d12.h>
+#include <dxgi1_4.h>
 #include <kiero.hpp>
 #include <imgui.h>
 #include <imgui_impl_dx11.h>
 #include <imgui_impl_win32.h>
 #include <windows.h>
+#include <MinHook.h>
+#include <vector>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
 
 namespace edu::rendering {
 
-static ID3D11Device*           g_device  = nullptr;
-static ID3D11DeviceContext*    g_context = nullptr;
-static ID3D11RenderTargetView* g_rtv     = nullptr;
-static HWND                    g_hwnd    = nullptr;
-static bool                    g_imgui   = false;
-static WNDPROC                 g_origWndProc = nullptr;
+static ID3D11Device*            g_d3d11Device   = nullptr;
+static ID3D11DeviceContext*     g_d3d11Context  = nullptr;
+static ID3D11On12Device*        g_d3d11on12     = nullptr;
+static ID3D12CommandQueue*      g_cmdQueue      = nullptr;
+static HWND                     g_hwnd          = nullptr;
+static bool                     g_imgui         = false;
+static bool                     g_initFailed    = false;
+static bool                     g_isD3D12       = false;
+static bool                     g_welcomed      = false;
+static bool                     g_installed     = false;
+static WNDPROC                  g_origWndProc   = nullptr;
+
+struct FrameContext {
+    ID3D11RenderTargetView* rtv     = nullptr;
+    ID3D11Resource*         wrapped = nullptr;
+};
+static std::vector<FrameContext> g_frames;
+static UINT g_bufferCount = 0;
 
 using PresentFn       = HRESULT(*)(IDXGISwapChain*, UINT, UINT);
 using ResizeBuffersFn = HRESULT(*)(IDXGISwapChain*, UINT, UINT, UINT, DXGI_FORMAT, UINT);
+using ExecuteCommandListsFn = void(*)(ID3D12CommandQueue*, UINT, ID3D12CommandList* const*);
 
-static PresentFn       oPresent       = nullptr;
-static ResizeBuffersFn oResizeBuffers = nullptr;
+static PresentFn             oPresent = nullptr;
+static ResizeBuffersFn       oResizeBuffers = nullptr;
+static ExecuteCommandListsFn oExecuteCommandLists = nullptr;
 
 static LRESULT CALLBACK hk_WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wp, lp))
+    if (g_imgui && ImGui_ImplWin32_WndProcHandler(hwnd, msg, wp, lp))
         return 1;
 
     if (gui::isOpen()) {
-        if (msg == WM_MOUSEMOVE || msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP ||
-            msg == WM_RBUTTONDOWN || msg == WM_RBUTTONUP || msg == WM_MOUSEWHEEL)
+        switch (msg) {
+        case WM_MOUSEMOVE:
+        case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
+        case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
+        case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
+        case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
+        case WM_KEYDOWN: case WM_KEYUP: case WM_SYSKEYDOWN: case WM_SYSKEYUP:
+        case WM_CHAR: case WM_UNICHAR:
+        case WM_INPUT:
             return 1;
+        }
     }
 
     return CallWindowProcA(g_origWndProc, hwnd, msg, wp, lp);
 }
 
-static bool g_welcomed = false;
+static void hk_ExecuteCommandLists(ID3D12CommandQueue* q, UINT n, ID3D12CommandList* const* lists) {
+    if (!g_cmdQueue) {
+        g_cmdQueue = q;
+        // LOG_INFO("SwapChain: captured command queue %p", q);
+    }
+    oExecuteCommandLists(q, n, lists);
+}
 
-static void initImGui(IDXGISwapChain* sc) {
-    if (g_imgui) return;
+static void cleanupFrames() {
+    for (auto& f : g_frames) {
+        if (f.rtv) { f.rtv->Release(); f.rtv = nullptr; }
+        if (f.wrapped) { f.wrapped->Release(); f.wrapped = nullptr; }
+    }
+    g_frames.clear();
+}
 
+static bool createFrameResources(IDXGISwapChain* sc) {
     DXGI_SWAP_CHAIN_DESC desc{};
     sc->GetDesc(&desc);
+    g_bufferCount = desc.BufferCount ? desc.BufferCount : 1;
+    g_frames.resize(g_bufferCount);
+
+    if (!g_isD3D12) {
+        ID3D11Texture2D* buf = nullptr;
+        if (FAILED(sc->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&buf)) || !buf)
+            return false;
+        g_d3d11Device->CreateRenderTargetView(buf, nullptr, &g_frames[0].rtv);
+        buf->Release();
+        return g_frames[0].rtv != nullptr;
+    }
+
+    for (UINT i = 0; i < g_bufferCount; i++) {
+        ID3D12Resource* d3d12Buf = nullptr;
+        if (FAILED(sc->GetBuffer(i, __uuidof(ID3D12Resource), (void**)&d3d12Buf)))
+            return false;
+
+        D3D11_RESOURCE_FLAGS flags11 = { D3D11_BIND_RENDER_TARGET };
+        HRESULT hr = g_d3d11on12->CreateWrappedResource(
+            d3d12Buf, &flags11,
+            D3D12_RESOURCE_STATE_RENDER_TARGET,
+            D3D12_RESOURCE_STATE_PRESENT,
+            __uuidof(ID3D11Resource), (void**)&g_frames[i].wrapped
+        );
+        d3d12Buf->Release();
+        if (FAILED(hr)) return false;
+
+        ID3D11Texture2D* tex = nullptr;
+        g_frames[i].wrapped->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
+        if (!tex) return false;
+        g_d3d11Device->CreateRenderTargetView(tex, nullptr, &g_frames[i].rtv);
+        tex->Release();
+        if (!g_frames[i].rtv) return false;
+    }
+    return true;
+}
+
+static void initImGui(IDXGISwapChain* sc) {
+    if (g_imgui || g_initFailed) return;
+
+    DXGI_SWAP_CHAIN_DESC desc{};
+    if (FAILED(sc->GetDesc(&desc))) return;
     g_hwnd = desc.OutputWindow;
 
-    sc->GetDevice(__uuidof(ID3D11Device), (void**)&g_device);
-    g_device->GetImmediateContext(&g_context);
+    // Try native D3D11
+    if (SUCCEEDED(sc->GetDevice(__uuidof(ID3D11Device), (void**)&g_d3d11Device)) && g_d3d11Device) {
+        g_isD3D12 = false;
+        g_d3d11Device->GetImmediateContext(&g_d3d11Context);
+        // LOG_INFO("SwapChain: native D3D11 device");
+    } else {
+        g_d3d11Device = nullptr;
+        g_isD3D12 = true;
 
-    ID3D11Texture2D* backBuf = nullptr;
-    sc->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuf);
-    g_device->CreateRenderTargetView(backBuf, nullptr, &g_rtv);
-    backBuf->Release();
+        if (!g_cmdQueue) return; // Wait for ExecuteCommandLists hook
+
+        ID3D12Device* d3d12dev = nullptr;
+        if (FAILED(sc->GetDevice(__uuidof(ID3D12Device), (void**)&d3d12dev)) || !d3d12dev) {
+            g_initFailed = true;
+            return;
+        }
+
+        // LOG_INFO("SwapChain: creating D3D11On12...");
+        IUnknown* queueUnk = g_cmdQueue;
+        HRESULT hr = D3D11On12CreateDevice(
+            d3d12dev, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+            nullptr, 0, &queueUnk, 1, 0,
+            &g_d3d11Device, &g_d3d11Context, nullptr
+        );
+        d3d12dev->Release();
+
+        if (FAILED(hr) || !g_d3d11Device) {
+            // LOG_ERROR("SwapChain: D3D11On12 failed (0x%08X)", hr);
+            g_initFailed = true;
+            return;
+        }
+
+        g_d3d11Device->QueryInterface(__uuidof(ID3D11On12Device), (void**)&g_d3d11on12);
+        // LOG_INFO("SwapChain: D3D11On12 created");
+    }
+
+    if (!createFrameResources(sc)) {
+        // LOG_ERROR("SwapChain: frame resources failed");
+        g_initFailed = true;
+        return;
+    }
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
+    float fontPx = desc.BufferDesc.Height * 0.028f;
+    if (fontPx < 18.0f) fontPx = 18.0f;
+    if (fontPx > 48.0f) fontPx = 48.0f;
+    io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", fontPx);
+
     gui::applyStyle();
-
     ImGui_ImplWin32_Init(g_hwnd);
-    ImGui_ImplDX11_Init(g_device, g_context);
-
+    ImGui_ImplDX11_Init(g_d3d11Device, g_d3d11Context);
     g_origWndProc = (WNDPROC)SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, (LONG_PTR)hk_WndProc);
-
     g_imgui = true;
+    // LOG_INFO("SwapChain: ImGui ready (D3D%s)", g_isD3D12 ? "11on12" : "11");
 }
 
 static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     initImGui(sc);
+    if (!g_imgui) return oPresent(sc, sync, flags);
+
+    UINT idx = 0;
+    if (g_isD3D12 && g_frames.size() > 1) {
+        IDXGISwapChain3* sc3 = nullptr;
+        if (SUCCEEDED(sc->QueryInterface(__uuidof(IDXGISwapChain3), (void**)&sc3))) {
+            idx = sc3->GetCurrentBackBufferIndex();
+            sc3->Release();
+        }
+    }
+    if (idx >= g_frames.size()) return oPresent(sc, sync, flags);
+
+    auto& frame = g_frames[idx];
+    if (!frame.rtv) return oPresent(sc, sync, flags);
+
+    if (g_isD3D12 && g_d3d11on12 && frame.wrapped)
+        g_d3d11on12->AcquireWrappedResources(&frame.wrapped, 1);
 
     if (input::isJustPressed(VK_RSHIFT))
         gui::toggle();
@@ -84,7 +217,6 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     ImGui::NewFrame();
 
     if (!g_welcomed) {
-        SetWindowTextA(g_hwnd, "Aura Client");
         gui::notifications::notify("Aura Client loaded");
         g_welcomed = true;
     }
@@ -93,49 +225,68 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     gui::notifications::render();
 
     ImGui::Render();
-    g_context->OMSetRenderTargets(1, &g_rtv, nullptr);
+    g_d3d11Context->OMSetRenderTargets(1, &frame.rtv, nullptr);
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    if (g_isD3D12 && g_d3d11on12 && frame.wrapped) {
+        g_d3d11on12->ReleaseWrappedResources(&frame.wrapped, 1);
+        g_d3d11Context->Flush();
+    }
 
     return oPresent(sc, sync, flags);
 }
 
 static HRESULT hk_ResizeBuffers(IDXGISwapChain* sc, UINT count, UINT w, UINT h,
                                  DXGI_FORMAT fmt, UINT fl) {
-    if (g_rtv) { g_rtv->Release(); g_rtv = nullptr; }
-
+    cleanupFrames();
     HRESULT hr = oResizeBuffers(sc, count, w, h, fmt, fl);
-
-    ID3D11Texture2D* backBuf = nullptr;
-    sc->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&backBuf);
-    if (backBuf) {
-        g_device->CreateRenderTargetView(backBuf, nullptr, &g_rtv);
-        backBuf->Release();
-    }
+    if (g_imgui) createFrameResources(sc);
     return hr;
 }
 
-bool installSwapChainHook() {
-    if (kiero::init(kiero::RenderType::Auto) != kiero::Status::Success)
-        return false;
+bool isInstalled() { return g_installed; }
+
+void tryLazyInit() {
+    if (g_installed) return;
+
+    // LOG_INFO("SwapChain: kiero::init...");
+    auto status = kiero::init(kiero::RenderType::Auto);
+    if (status != kiero::Status::Success) {
+        // LOG_ERROR("SwapChain: kiero failed (%d)", (int)status);
+        return;
+    }
+    // LOG_INFO("SwapChain: kiero OK (render=%d)", (int)kiero::getRenderType());
 
     kiero::bind<&IDXGISwapChain::Present>(&oPresent, &hk_Present);
     kiero::bind<&IDXGISwapChain::ResizeBuffers>(&oResizeBuffers, &hk_ResizeBuffers);
-    return true;
+
+    if (kiero::getRenderType() == kiero::RenderType::D3D12) {
+        auto pExec = kiero::getMethod<&ID3D12CommandQueue::ExecuteCommandLists>();
+        if (pExec) {
+            MH_CreateHook((void*)pExec, (void*)&hk_ExecuteCommandLists, (void**)&oExecuteCommandLists);
+            MH_EnableHook((void*)pExec);
+            // LOG_INFO("SwapChain: ExecuteCommandLists hooked");
+        }
+    }
+
+    g_installed = true;
+    // LOG_INFO("SwapChain: hooks installed");
 }
+
+bool installSwapChainHook() { tryLazyInit(); return g_installed; }
 
 void removeSwapChainHook() {
     if (g_origWndProc && g_hwnd)
         SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, (LONG_PTR)g_origWndProc);
-
     if (g_imgui) {
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplWin32_Shutdown();
         ImGui::DestroyContext();
     }
-
-    if (g_rtv) g_rtv->Release();
-    if (g_context) g_context->Release();
-    if (g_device) g_device->Release();
+    cleanupFrames();
+    if (g_d3d11on12) g_d3d11on12->Release();
+    if (g_d3d11Context) g_d3d11Context->Release();
+    if (g_d3d11Device) g_d3d11Device->Release();
 }
 
 } // namespace edu::rendering

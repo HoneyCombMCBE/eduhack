@@ -3,103 +3,145 @@
 #include <vector>
 #include <chrono>
 #include <cmath>
+#include <algorithm>
+
+// 1:1 port of flarial NotifyHeartbeat (Engine.cpp:1734-1798)
 
 namespace edu::gui::notifications {
 
-struct Toast {
-    std::string message;
-    float spawnTime;
-    float currentX;
+struct Notification {
+    float currentPos = 0;
+    float currentPosY = 0;
+    std::string text;
+    bool finished = false;
+    bool arrived = false;
+    float width = 0;
+    bool firstTime = true;
+    std::chrono::steady_clock::time_point time = std::chrono::steady_clock::now();
 };
 
-static std::vector<Toast> g_toasts;
+static std::vector<Notification> g_notifications;
 
-static float getTime() {
-    static auto start = std::chrono::steady_clock::now();
-    return std::chrono::duration<float>(std::chrono::steady_clock::now() - start).count();
+// flarial lerp (Engine.cpp:1975) — NO clamp, ceil rounded
+static void fl(float& a, float b, float t) {
+    float v = a + (b - a) * t;
+    a = std::ceilf(v * 1000.f) / 1000.f;
 }
 
-static float lerp(float a, float b, float t) {
-    return a + (b - a) * t;
-}
+static float rnd(float r, float sH) { return r * sH / 1920.f; }
 
-static float easeOutCubic(float t) {
-    return 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
+static ImU32 col(int r, int g, int b, float a = 1.f) {
+    return IM_COL32(r, g, b, (int)(a * 255.f));
 }
 
 void notify(const std::string& message) {
-    g_toasts.push_back({message, getTime(), 500.0f});
+    Notification n;
+    n.text = message;
+    n.currentPosY = ImGui::GetIO().DisplaySize.y;
+    g_notifications.push_back(n);
 }
 
 void render() {
-    float now = getTime();
     auto& io = ImGui::GetIO();
-    float screenW = io.DisplaySize.x;
-    float screenH = io.DisplaySize.y;
+    float sH = io.DisplaySize.y;
+    float sW = io.DisplaySize.x;
 
-    float yOffset = 24.0f;
-    constexpr float toastH = 38.0f;
-    constexpr float padding = 6.0f;
-    constexpr float duration = 2.5f;
-    constexpr float slideTime = 0.35f;
-    constexpr float fadeTime = 0.6f;
+    // flarial frameFactor = 60/fps clamped <=1, floored to 2 decimals
+    float dt = io.DeltaTime > 0 ? io.DeltaTime : 0.016f;
+    float frameFactor = dt * 60.f;
+    if (frameFactor > 1.f) frameFactor = 1.f;
+    frameFactor = std::floor(frameFactor * 100.f) / 100.f;
 
-    for (int i = (int)g_toasts.size() - 1; i >= 0; i--) {
-        auto& t = g_toasts[i];
-        float age = now - t.spawnTime;
+    // flarial: RoundingConstraint(20,20) → round.x = 20 * sH / 1920
+    float roundX = rnd(20, sH);
+    // flarial: height = RelativeConstraint(0.035, "height", true)
+    float height = sH * 0.035f;
+    // flarial: fontSize = RelativeConstraint(0.128, "height", true)
+    // This goes through FlarialTextWithFont which scales: targetFontSize = fontSize * 0.18
+    float fontSize = sH * 0.128f;
+    float imguiFontSize = fontSize * 0.18f;
 
-        if (age > duration + fadeTime) {
-            g_toasts.erase(g_toasts.begin() + i);
-            continue;
+    // primary1: #ff233a (flarial exact red)
+    ImU32 accentCol = col(255, 35, 58);
+
+    ImDrawList* dl = ImGui::GetBackgroundDrawList();
+
+    int i = 0;
+    for (auto& n : g_notifications) {
+        // flarial: posyModif = -((height + RelativeConstraint(0.01, "height", true)) * i)
+        float posyModif = -((height + sH * 0.01f) * i);
+
+        if (n.firstTime) {
+            // flarial: measure text with FlarialTextWithFont at transparent color
+            // width = measured text width + RelativeConstraint(0.0345, "height", true)
+            ImVec2 ts = ImGui::CalcTextSize(n.text.c_str());
+            float scale = imguiFontSize / ImGui::GetFontSize();
+            float textW = ts.x * scale;
+            n.width = textW + sH * 0.0345f;
+            // flarial: CenterConstraint(width, 0).x = (screenWidth - width) / 2
+            n.currentPos = (sW - n.width) / 2.f;
+            n.firstTime = false;
         }
 
-        float textW = ImGui::CalcTextSize(t.message.c_str()).x;
-        float toastW = textW + 36.0f;
+        if (!n.finished) {
+            if (!n.arrived) {
+                // flarial: draw FIRST, then lerp (draw at pre-lerp position)
+                dl->AddRectFilled(
+                    ImVec2(n.currentPos, n.currentPosY + posyModif),
+                    ImVec2(n.currentPos + n.width, n.currentPosY + posyModif + height),
+                    accentCol, roundX);
 
-        float targetX = screenW - toastW - 20.0f;
-        float startX = screenW + 10.0f;
+                // text centered in rect
+                {
+                    ImVec2 ts = ImGui::CalcTextSize(n.text.c_str());
+                    float sc = imguiFontSize / ImGui::GetFontSize();
+                    float tx = n.currentPos + (n.width - ts.x * sc) / 2.f;
+                    float ty = n.currentPosY + posyModif + (height - ts.y * sc) / 2.f;
+                    dl->AddText(ImGui::GetFont(), imguiFontSize, ImVec2(tx, ty),
+                        col(255, 255, 255), n.text.c_str());
+                }
 
-        if (age < slideTime) {
-            float p = easeOutCubic(age / slideTime);
-            t.currentX = lerp(startX, targetX, p);
-        } else if (age > duration) {
-            float p = (age - duration) / fadeTime;
-            t.currentX = lerp(targetX, screenW + 10.0f, p * p);
+                // flarial: lerp toward PercentageConstraint(0.1, "bottom", true) = sH * 0.9
+                fl(n.currentPosY, sH * 0.9f, frameFactor * 0.067f);
+
+                // flarial: arrive when <= PercentageConstraint(0.08, "bottom", true) = sH * 0.92
+                if (n.currentPosY <= sH * 0.92f) {
+                    n.arrived = true;
+                    n.time = std::chrono::steady_clock::now();
+                }
+
+                i++;
+            } else {
+                auto current = std::chrono::steady_clock::now();
+                auto timeDiff = std::chrono::duration_cast<std::chrono::milliseconds>(current - n.time);
+
+                // flarial: draw FIRST, then lerp
+                dl->AddRectFilled(
+                    ImVec2(n.currentPos, n.currentPosY + posyModif),
+                    ImVec2(n.currentPos + n.width, n.currentPosY + posyModif + height),
+                    accentCol, roundX);
+
+                {
+                    ImVec2 ts = ImGui::CalcTextSize(n.text.c_str());
+                    float sc = imguiFontSize / ImGui::GetFontSize();
+                    float tx = n.currentPos + (n.width - ts.x * sc) / 2.f;
+                    float ty = n.currentPosY + posyModif + (height - ts.y * sc) / 2.f;
+                    dl->AddText(ImGui::GetFont(), imguiFontSize, ImVec2(tx, ty),
+                        col(255, 255, 255), n.text.c_str());
+                }
+
+                // flarial: after 5000ms, lerp out
+                if (timeDiff.count() > 5000) {
+                    fl(n.currentPosY, sH + 500, frameFactor * 0.052f);
+                    if (n.currentPosY >= sH) { n.finished = true; }
+                }
+
+                i++;
+            }
         } else {
-            t.currentX = lerp(t.currentX, targetX, 0.2f);
+            g_notifications.erase(g_notifications.begin() + (&n - &g_notifications[0]));
+            break;
         }
-
-        float alpha = 1.0f;
-        if (age > duration)
-            alpha = 1.0f - ((age - duration) / fadeTime);
-        alpha = std::max(0.0f, alpha);
-
-        float posY = screenH - yOffset - toastH;
-        ImDrawList* dl = ImGui::GetForegroundDrawList();
-
-        float pulse = 0.5f + 0.5f * sinf(now * 2.5f);
-        ImU32 bgCol = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(0.05f, 0.10f, 0.12f, 0.94f * alpha));
-        ImU32 borderCol = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(0.10f + 0.03f * pulse, 0.70f + 0.05f * pulse, 0.72f, 0.55f * alpha));
-        ImU32 txtCol = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(0.85f, 0.98f, 0.96f, alpha));
-        ImU32 accentLine = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(0.12f, 0.82f, 0.78f, 0.8f * alpha));
-
-        ImVec2 p0(t.currentX, posY);
-        ImVec2 p1(t.currentX + toastW, posY + toastH);
-
-        dl->AddRectFilled(p0, p1, bgCol, 8.0f);
-        dl->AddRect(p0, p1, borderCol, 8.0f, 0, 1.2f);
-
-        dl->AddLine(ImVec2(p0.x + 3, p0.y + 6), ImVec2(p0.x + 3, p1.y - 6),
-                    accentLine, 2.5f);
-
-        dl->AddText(ImVec2(t.currentX + 18.0f, posY + (toastH - 14.0f) / 2.0f),
-                    txtCol, t.message.c_str());
-
-        yOffset += toastH + padding;
     }
 }
 

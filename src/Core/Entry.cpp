@@ -10,15 +10,12 @@
 using namespace edu;
 
 static DWORD WINAPI bootstrap(LPVOID) {
-    if (!Hooks::init())
-        return 1;
+    if (!Hooks::init()) return 1;
 
     features::hooks::ClientInstanceUpdate::install();
 
     registerModule("Fly", "Toggle creative flight mode", &features::g_flyEnabled,
                    []{ features::toggleFly(); });
-
-    rendering::installSwapChainHook();
 
     return 0;
 }
