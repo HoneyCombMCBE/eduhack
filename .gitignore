@@ -1,0 +1,36 @@
+build/
+build-clang/
+build-*/
+*.dll
+*.lib
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.exe
+*.o
+*.a
+*.d
+*.zip
+*.tar.xz
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Reference files (downloaded headers)
+build/Player_ref.h
+build/LocalPlayer_ref.h
