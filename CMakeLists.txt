@@ -113,8 +113,10 @@ set(EDU_SOURCES
     src/Core/Entry.cpp
     src/Client/ClientStore.cpp
     src/Features/Hooks/ClientInstanceUpdate.cpp
+    src/Features/Hooks/LevelTick.cpp
     src/Features/Fly.cpp
     src/Features/CoordsDisplay.cpp
+    src/Features/Sprint.cpp
     src/Rendering/SwapChainHook.cpp
     src/GUI/ClickGUI.cpp
     src/GUI/Notifications.cpp

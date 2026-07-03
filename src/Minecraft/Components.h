@@ -17,6 +17,11 @@ struct OnGroundFlagComponent : IEntityComponent {
     static constexpr hat::fixed_string type_name = "struct OnGroundFlagComponent";
 };
 
+struct MoveInputComponent : IEntityComponent {
+    static constexpr hat::fixed_string type_name = "struct MoveInputComponent";
+    uint32_t mInputStateFlags;
+};
+
 struct ActorIdentifierComponent : IEntityComponent {
     static constexpr hat::fixed_string type_name = "struct ActorIdentifierComponent";
     uintptr_t data[8];

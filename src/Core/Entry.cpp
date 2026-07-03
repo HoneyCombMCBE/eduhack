@@ -2,8 +2,10 @@
 #include "../Client/IClient.h"
 #include "../Client/ModuleManager.h"
 #include "../Features/Hooks/ClientInstanceUpdate.h"
+#include "../Features/Hooks/LevelTick.h"
 #include "../Features/Fly.h"
 #include "../Features/CoordsDisplay.h"
+#include "../Features/Sprint.h"
 #include "../Rendering/SwapChainHook.h"
 
 #include <windows.h>
@@ -21,6 +23,9 @@ static DWORD WINAPI init(LPVOID) {
     registerModule("Fly", "Toggle creative flight mode", "Movement",
                    &features::g_flyEnabled, []{ features::toggleFly(); });
 
+    registerModule("Sprint", "Always sprint when moving", "Movement",
+                   &features::g_sprintEnabled, []{ features::toggleSprint(); });
+
     registerModule("Coords", "Show coordinates on screen", "Render",
                    &features::g_coordsEnabled, []{ features::toggleCoords(); },
                    {{"Position", {"Bottom Left", "Bottom Right", "Top Left", "Top Right"},
@@ -35,6 +40,7 @@ static DWORD WINAPI init(LPVOID) {
     }
 
     rendering::removeSwapChainHook();
+    features::hooks::LevelTick::remove();
     features::hooks::ClientInstanceUpdate::remove();
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();

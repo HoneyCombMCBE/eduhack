@@ -4,7 +4,7 @@
 #include "../../Client/ClientInstance.h"
 #include "../../Client/ClientStore.h"
 #include "../../Rendering/SwapChainHook.h"
-#include "../Fly.h"
+#include "LevelTick.h"
 
 #include <libhat/scanner.hpp>
 
@@ -28,9 +28,10 @@ static bool __fastcall hk_update(ClientInstance* self, bool isInitFinished) {
     if (!edu::rendering::isInstalled())
         edu::rendering::tryLazyInit();
 
-    void* player = self->getLocalPlayer();
-    if (player)
-        edu::features::tickFly(player);
+    static bool tickHooked = false;
+    if (!tickHooked && self->getLocalPlayer()) {
+        tickHooked = edu::features::hooks::LevelTick::install();
+    }
 
     return o_update(self, isInitFinished);
 }
