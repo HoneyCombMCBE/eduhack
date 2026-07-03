@@ -22,7 +22,9 @@ static DWORD WINAPI init(LPVOID) {
                    &features::g_flyEnabled, []{ features::toggleFly(); });
 
     registerModule("Coords", "Show coordinates on screen", "Render",
-                   &features::g_coordsEnabled, []{ features::toggleCoords(); });
+                   &features::g_coordsEnabled, []{ features::toggleCoords(); },
+                   {{"Position", {"Bottom Left", "Bottom Right", "Top Left", "Top Right"},
+                     &features::g_coordsPosition}});
 
     while (!g_disable) {
         if (GetAsyncKeyState(VK_END) & 1) {

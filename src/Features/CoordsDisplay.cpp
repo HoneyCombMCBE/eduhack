@@ -9,6 +9,7 @@
 namespace edu::features {
 
 bool g_coordsEnabled = false;
+int g_coordsPosition = 0;
 
 void toggleCoords() { g_coordsEnabled = !g_coordsEnabled; }
 
@@ -30,12 +31,22 @@ void renderCoords() {
 
     auto& io = ImGui::GetIO();
     float fontSize = io.DisplaySize.y * 0.022f;
+    float sW = io.DisplaySize.x, sH = io.DisplaySize.y;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
     ImVec2 ts = ImGui::CalcTextSize(buf);
     float sc = fontSize / ImGui::GetFontSize();
-    float tx = 10.f;
-    float ty = io.DisplaySize.y - fontSize - 10.f;
+    float tw = ts.x * sc;
+    float pad = 10.f;
+
+    float tx, ty;
+    switch (g_coordsPosition) {
+    default:
+    case 0: tx = pad;          ty = sH - fontSize - pad; break;
+    case 1: tx = sW - tw - pad; ty = sH - fontSize - pad; break;
+    case 2: tx = pad;          ty = pad;                  break;
+    case 3: tx = sW - tw - pad; ty = pad;                  break;
+    }
 
     dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx + 1, ty + 1),
         IM_COL32(0, 0, 0, 180), buf);

@@ -5,12 +5,19 @@
 
 namespace edu {
 
+struct ModuleSetting {
+    std::string name;
+    std::vector<std::string> options;
+    int* selected;
+};
+
 struct ModuleInfo {
     std::string name;
     std::string description;
     std::string category;
     bool* enabled;
     std::function<void()> toggle;
+    std::vector<ModuleSetting> settings;
 };
 
 inline std::vector<ModuleInfo>& getModules() {
@@ -20,8 +27,9 @@ inline std::vector<ModuleInfo>& getModules() {
 
 inline void registerModule(const std::string& name, const std::string& desc,
                            const std::string& category,
-                           bool* enabled, std::function<void()> toggle) {
-    getModules().push_back({name, desc, category, enabled, std::move(toggle)});
+                           bool* enabled, std::function<void()> toggle,
+                           std::vector<ModuleSetting> settings = {}) {
+    getModules().push_back({name, desc, category, enabled, std::move(toggle), std::move(settings)});
 }
 
 inline std::vector<std::string> getCategories() {

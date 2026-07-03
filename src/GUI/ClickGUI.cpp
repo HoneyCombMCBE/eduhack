@@ -17,6 +17,8 @@ namespace edu::gui {
 static bool g_open = false;
 static int g_selCat = 0;
 static int g_selMod = 0;
+static bool g_expanded = false;
+static int g_selSetting = 0;
 
 void toggle() {
     auto* ci = edu::getClientInstance();
@@ -28,8 +30,10 @@ void toggle() {
             screen != "f3_screen" && screen != "zoom_screen")
             return;
         g_open = true;
+        g_expanded = false;
     } else {
         g_open = false;
+        g_expanded = false;
     }
 }
 bool isOpen() { return g_open; }
@@ -105,21 +109,48 @@ void render() {
     };
 
     if (g_open) {
-        if (keyPressed(VK_LEFT))  { g_selCat = (g_selCat - 1 + catCount) % catCount; g_selMod = 0; }
-        if (keyPressed(VK_RIGHT)) { g_selCat = (g_selCat + 1) % catCount; g_selMod = 0; }
-
         auto curMods = getModsForCat(g_selCat);
         int modCount = (int)curMods.size();
 
-        if (keyPressed(VK_UP))   g_selMod = (g_selMod - 1 + modCount) % modCount;
-        if (keyPressed(VK_DOWN)) g_selMod = (g_selMod + 1) % modCount;
+        if (g_expanded) {
+            auto* m = (g_selMod < modCount) ? curMods[g_selMod] : nullptr;
+            int settingCount = m ? (int)m->settings.size() : 0;
 
-        if (keyPressed(VK_RETURN) && g_selMod < modCount) {
-            auto* m = curMods[g_selMod];
-            if (m->toggle) {
-                m->toggle();
-                bool ne = m->enabled ? *m->enabled : false;
-                notifications::notify(m->name + (ne ? " enabled" : " disabled"));
+            if (keyPressed(VK_TAB) || keyPressed(VK_ESCAPE)) {
+                g_expanded = false;
+            } else if (settingCount > 0) {
+                if (keyPressed(VK_UP))   g_selSetting = (g_selSetting - 1 + settingCount) % settingCount;
+                if (keyPressed(VK_DOWN)) g_selSetting = (g_selSetting + 1) % settingCount;
+
+                auto& s = m->settings[g_selSetting];
+                int optCount = (int)s.options.size();
+                if (optCount > 0 && s.selected) {
+                    if (keyPressed(VK_LEFT))  *s.selected = (*s.selected - 1 + optCount) % optCount;
+                    if (keyPressed(VK_RIGHT)) *s.selected = (*s.selected + 1) % optCount;
+                }
+            }
+        } else {
+            if (keyPressed(VK_LEFT))  { g_selCat = (g_selCat - 1 + catCount) % catCount; g_selMod = 0; }
+            if (keyPressed(VK_RIGHT)) { g_selCat = (g_selCat + 1) % catCount; g_selMod = 0; }
+
+            if (keyPressed(VK_UP))   g_selMod = (g_selMod - 1 + modCount) % modCount;
+            if (keyPressed(VK_DOWN)) g_selMod = (g_selMod + 1) % modCount;
+
+            if (keyPressed(VK_RETURN) && g_selMod < modCount) {
+                auto* m = curMods[g_selMod];
+                if (m->toggle) {
+                    m->toggle();
+                    bool ne = m->enabled ? *m->enabled : false;
+                    notifications::notify(m->name + (ne ? " enabled" : " disabled"));
+                }
+            }
+
+            if (keyPressed(VK_TAB) && g_selMod < modCount) {
+                auto* m = curMods[g_selMod];
+                if (!m->settings.empty()) {
+                    g_expanded = true;
+                    g_selSetting = 0;
+                }
             }
         }
     }
@@ -127,11 +158,20 @@ void render() {
     float panelW   = sH * 0.28f;
     float headerH  = sH * 0.05f;
     float rowH     = sH * 0.042f;
+    float settingH = sH * 0.034f;
     float rowGap   = sH * 0.002f;
     float padY     = sH * 0.008f;
     float panelRnd = rnd(18, sH);
     float fontSize = sH * 0.020f;
+    float settingFs = sH * 0.016f;
     float headerFs = sH * 0.024f;
+
+    auto countSettingRows = [&](int ci, int modIdx) -> int {
+        if (!g_expanded || ci != g_selCat || modIdx != g_selMod) return 0;
+        auto catMods = getModsForCat(ci);
+        if (modIdx >= (int)catMods.size()) return 0;
+        return (int)catMods[modIdx]->settings.size();
+    };
 
     float totalW = (float)catCount * panelW + (float)(catCount - 1) * sH * 0.02f;
     float startX = (sW - totalW) / 2.f;
@@ -143,7 +183,13 @@ void render() {
 
         auto catMods = getModsForCat(ci);
         int modCount = (int)catMods.size();
-        float panelH = headerH + padY + modCount * (rowH + rowGap) + padY;
+
+        int totalSettings = 0;
+        for (int mi = 0; mi < modCount; mi++)
+            totalSettings += countSettingRows(ci, mi);
+
+        float panelH = headerH + padY + modCount * (rowH + rowGap)
+                      + totalSettings * (settingH + rowGap) + padY;
 
         float px = startX + ci * (panelW + sH * 0.02f);
         float py = startY;
@@ -182,7 +228,8 @@ void render() {
         for (int mi = 0; mi < modCount; mi++) {
             auto* m = catMods[mi];
             bool en = m->enabled ? *m->enabled : false;
-            bool highlighted = isSel && mi == g_selMod;
+            bool highlighted = isSel && mi == g_selMod && !g_expanded;
+            bool isExpandedMod = isSel && mi == g_selMod && g_expanded;
 
             float rowPad = sH * 0.004f;
             float rx = px + rowPad;
@@ -204,7 +251,7 @@ void render() {
                     C(15, 15, 18, 0.90f * g_animAlpha), rowRnd2);
             }
 
-            if (highlighted) {
+            if (highlighted || isExpandedMod) {
                 dl->AddRect(ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
                     C(255, 255, 255, 0.9f * g_animAlpha), rowRnd2, 0, 2.f);
             }
@@ -221,7 +268,47 @@ void render() {
                     C(255, 255, 255, g_animAlpha), m->name.c_str());
             }
 
+            if (!m->settings.empty() && isSel && mi == g_selMod && !g_expanded) {
+                const char* hint = "[TAB]";
+                float hintFs = sH * 0.013f;
+                dl->AddText(ImGui::GetFont(), hintFs,
+                    ImVec2(rx + rw - 40.f, ry + (rowH - hintFs) / 2.f),
+                    C(255, 255, 255, 0.4f * g_animAlpha), hint);
+            }
+
             rowY += rowH + rowGap;
+
+            if (isExpandedMod) {
+                float indent = sH * 0.015f;
+                for (int si = 0; si < (int)m->settings.size(); si++) {
+                    auto& s = m->settings[si];
+                    bool sSel = (si == g_selSetting);
+
+                    float sx = rx + indent;
+                    float sw = rw - indent;
+                    float sy = rowY;
+                    float sRnd = rnd(6, sH);
+
+                    dl->AddRectFilled(ImVec2(sx, sy), ImVec2(sx + sw, sy + settingH),
+                        C(30, 30, 35, 0.9f * g_animAlpha), sRnd);
+
+                    if (sSel) {
+                        dl->AddRect(ImVec2(sx, sy), ImVec2(sx + sw, sy + settingH),
+                            C(255, 200, 200, 0.8f * g_animAlpha), sRnd, 0, 1.5f);
+                    }
+
+                    std::string val = (s.selected && *s.selected < (int)s.options.size())
+                        ? s.options[*s.selected] : "?";
+                    std::string label = s.name + ":  < " + val + " >";
+
+                    float lx = sx + sH * 0.01f;
+                    float ly = sy + (settingH - settingFs) / 2.f;
+                    dl->AddText(ImGui::GetFont(), settingFs, ImVec2(lx, ly),
+                        C(255, 255, 255, (sSel ? 1.f : 0.6f) * g_animAlpha), label.c_str());
+
+                    rowY += settingH + rowGap;
+                }
+            }
         }
     }
 }
