@@ -47,21 +47,17 @@ static ResizeBuffersFn       oResizeBuffers = nullptr;
 static ExecuteCommandListsFn oExecuteCommandLists = nullptr;
 
 static LRESULT CALLBACK hk_WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    if (g_imgui && ImGui_ImplWin32_WndProcHandler(hwnd, msg, wp, lp))
-        return 1;
-
     if (gui::isOpen()) {
         switch (msg) {
+        case WM_KEYDOWN: case WM_KEYUP: case WM_SYSKEYDOWN: case WM_SYSKEYUP:
+        case WM_CHAR: case WM_UNICHAR:
         case WM_MOUSEMOVE:
         case WM_LBUTTONDOWN: case WM_LBUTTONUP: case WM_LBUTTONDBLCLK:
         case WM_RBUTTONDOWN: case WM_RBUTTONUP: case WM_RBUTTONDBLCLK:
         case WM_MBUTTONDOWN: case WM_MBUTTONUP: case WM_MBUTTONDBLCLK:
         case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
-        case WM_KEYDOWN: case WM_KEYUP: case WM_SYSKEYDOWN: case WM_SYSKEYUP:
-        case WM_CHAR: case WM_UNICHAR:
         case WM_INPUT:
-            return 1;
-        }
+            return 0;
     }
 
     return CallWindowProcA(g_origWndProc, hwnd, msg, wp, lp);
@@ -187,9 +183,6 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     if (g_isD3D12 && g_d3d11on12 && frame.wrapped)
         g_d3d11on12->AcquireWrappedResources(&frame.wrapped, 1);
 
-    if (input::isJustPressed(VK_RSHIFT))
-        gui::toggle();
-
     ImGui_ImplDX11_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
@@ -197,6 +190,18 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     if (!g_welcomed) {
         gui::notifications::notify("heheboi loaded");
         g_welcomed = true;
+    }
+
+    {
+        static bool rshiftWas = false;
+        bool rshiftNow = (GetAsyncKeyState(VK_RSHIFT) & 0x8000) != 0;
+        if (rshiftNow && !rshiftWas) gui::toggle();
+        rshiftWas = rshiftNow;
+
+        static bool escWas = false;
+        bool escNow = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+        if (escNow && !escWas && gui::isOpen()) gui::toggle();
+        escWas = escNow;
     }
 
     gui::render();

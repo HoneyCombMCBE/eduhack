@@ -1,4 +1,4 @@
-You are working in a teal client "aura client". You must exactly copy "D:/_edward/projects/flarial-ref"'s design, layout including animations, sizing,  positions, and code tricks to get a replica UI except teal not red.
+You are working in a client called heheboi client. You must write human code, without unecessary comments.
 
 ## Build
 

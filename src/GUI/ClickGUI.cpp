@@ -11,21 +11,63 @@
 #include <string>
 #include <map>
 #include <windows.h>
+#include <MinHook.h>
+
 
 namespace edu::gui {
 
 static bool g_open = false;
 
+using GrabMouseFn = void(__fastcall*)(void*);
+static GrabMouseFn oGrabMouse = nullptr;
+
+static decltype(&ShowCursor) oShowCursor = nullptr;
+
+static bool g_hooksInstalled = false;
+
+static void __fastcall hkGrabMouse(void* self) {
+    if (g_open) return;
+    oGrabMouse(self);
+}
+
+static int WINAPI hkShowCursor(BOOL bShow) {
+    if (g_open && !bShow) return 0;
+    return oShowCursor(bShow);
+}
+
+static void installHooks(edu::ClientInstance* ci) {
+    if (g_hooksInstalled) return;
+    auto vtable = *reinterpret_cast<uintptr_t**>(ci);
+    void* target = reinterpret_cast<void*>(vtable[edu::ClientInstance::kGrabMouseIdx]);
+    MH_CreateHook(target, (void*)&hkGrabMouse, (void**)&oGrabMouse);
+    MH_EnableHook(target);
+    MH_CreateHook((void*)&ShowCursor, (void*)&hkShowCursor, (void**)&oShowCursor);
+    MH_EnableHook((void*)&ShowCursor);
+    g_hooksInstalled = true;
+}
+
 void toggle() {
     auto* ci = edu::getClientInstance();
+    if (!ci) return;
 
-    g_open = !g_open;
-    // only touch mouse if we're in a world with no menus showing
-    bool inWorld = ci && ci->isInWorldNoMenus();
-    if (g_open) {
-        if (inWorld) ci->releaseMouse();
+    installHooks(ci);
+
+    if (!g_open) {
+        std::string screen = ci->getScreenName();
+        edu::logChat("toggle: screen=" + screen);
+        if (screen != "hud_screen" && screen != "pause_screen" &&
+            screen != "f3_screen" && screen != "zoom_screen")
+            return;
+        g_open = true;
+        ci->releaseMouse();
+        int count = ShowCursor(TRUE);
+        while (count < 0) count = ShowCursor(TRUE);
+        SetCursor(LoadCursor(nullptr, IDC_ARROW));
     } else {
-        if (inWorld) ci->grabMouse();
+        g_open = false;
+        int count = ShowCursor(FALSE);
+        while (count >= 0) count = ShowCursor(FALSE);
+        ci->grabMouse();
     }
 }
 bool isOpen() { return g_open; }
@@ -90,10 +132,6 @@ void render() {
     fl(g_animAlpha, g_open ? 1.f : 0.f, 0.15f * ff);
     if (g_animAlpha < 0.005f) return;
 
-    if (g_open) {
-        auto* ci = edu::getClientInstance();
-        if (ci && ci->isInWorldNoMenus()) ci->releaseMouse();
-    }
 
     // update own mouse state from hardware
     bool prevDown = g_mouseDown;
@@ -229,7 +267,7 @@ void render() {
                 m->toggle();
                 bool ne = m->enabled ? *m->enabled : false;
                 notifications::notify(m->name + (ne ? " enabled" : " disabled"));
-                // edu::logChat(m->name + (ne ? " §aenabled" : " §cdisabled"));
+                edu::logChat(m->name + (ne ? " enabled" : " disabled"));
             }
 
             rowY += rowH + rowGap;

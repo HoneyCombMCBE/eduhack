@@ -12,31 +12,33 @@ public:
     }
 
     bool hasLevel() {
-        return callVFunc<171, bool()>(this);
+        return callVFunc<172, bool()>(this);
     }
 
     void* getLevel() {
-        return callVFunc<169, void*()>(this);
+        return callVFunc<170, void*()>(this);
     }
 
     std::string getScreenName() const {
-        return callVFunc<246, std::string()>(this);
+        return callVFunc<247, std::string()>(this);
     }
 
     bool isInWorldNoMenus() const {
-        return callVFunc<159, bool()>(this);
+        return callVFunc<160, bool()>(this);
     }
 
     bool isInGame() {
         return getLocalPlayer() != nullptr;
     }
 
-    void grabMouse() {
-        callVFunc<310, void()>(this);
-    }
+    static constexpr size_t kGrabMouseIdx = 311;
+    static constexpr size_t kReleaseMouseIdx = 312;
 
+    void grabMouse() {
+        callVFunc<kGrabMouseIdx, void()>(this);
+    }
     void releaseMouse() {
-        callVFunc<311, void()>(this);
+        callVFunc<kReleaseMouseIdx, void()>(this);
     }
 };
 

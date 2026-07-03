@@ -5,16 +5,16 @@
 
 namespace edu {
 
-// LocalPlayer::displayClientMessage — VFT 198
+static constexpr size_t kDisplayClientMessageIdx = 199;
+
 inline void sendChatMessage(const std::string& message) {
     auto* ci = getClientInstance();
     if (!ci) return;
     void* player = ci->getLocalPlayer();
     if (!player) return;
-
-    using Fn = void(__fastcall*)(void*, const std::string&, std::optional<std::string>);
-    auto** vtable = *reinterpret_cast<void***>(player);
-    auto fn = reinterpret_cast<Fn>(vtable[198]);
+    auto vtable = *reinterpret_cast<uintptr_t**>(player);
+    auto fn = reinterpret_cast<void(__fastcall*)(void*, const std::string&, std::optional<std::string>)>(
+        vtable[kDisplayClientMessageIdx]);
     fn(player, message, std::nullopt);
 }
 

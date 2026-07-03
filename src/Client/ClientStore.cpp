@@ -1,8 +1,10 @@
 #include "ClientStore.h"
+#include <windows.h>
 
 namespace edu {
 
 ClientInstance* g_ClientInstance = nullptr;
+static HWND g_hwnd = nullptr;
 
 namespace {
 std::atomic<bool> g_captured{ false };
@@ -11,8 +13,10 @@ std::atomic<bool> g_captured{ false };
 void captureClientInstance(ClientInstance* instance) {
     if (!instance) return;
     bool expected = false;
-    if (g_captured.compare_exchange_strong(expected, true, std::memory_order_acq_rel))
+    if (g_captured.compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
         g_ClientInstance = instance;
+        g_hwnd = GetForegroundWindow();
+    }
 }
 
 ClientInstance* getClientInstance() {
@@ -22,5 +26,6 @@ ClientInstance* getClientInstance() {
 bool hasClientInstance() {
     return g_captured.load(std::memory_order_acquire);
 }
+
 
 } // namespace edu

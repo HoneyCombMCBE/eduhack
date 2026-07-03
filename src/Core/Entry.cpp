@@ -6,37 +6,11 @@
 #include "../Rendering/SwapChainHook.h"
 
 #include <windows.h>
-#include <cstdio>
 
 using namespace edu;
 
 static HMODULE g_hModule = nullptr;
 volatile bool g_disable = false;
-
-static bool g_consoleReady = false;
-static std::string g_lastScreen;
-
-static void initConsole() {
-    if (g_consoleReady) return;
-    AllocConsole();
-    FILE* f = nullptr;
-    freopen_s(&f, "CONOUT$", "w", stdout);
-    SetConsoleTitleA("heheboi :: debug");
-    g_consoleReady = true;
-    printf("[heheboi] ready\n");
-    fflush(stdout);
-}
-
-static void pollScreen() {
-    auto* ci = getClientInstance();
-    if (!ci) return;
-    std::string screen = ci->getScreenName();
-    if (screen != g_lastScreen) {
-        printf("[screen] %s -> %s\n", g_lastScreen.c_str(), screen.c_str());
-        fflush(stdout);
-        g_lastScreen = screen;
-    }
-}
 
 static DWORD WINAPI init(LPVOID) {
     if (!Hooks::init()) return 1;
@@ -46,18 +20,13 @@ static DWORD WINAPI init(LPVOID) {
     registerModule("Fly", "Toggle creative flight mode", "Movement",
                    &features::g_flyEnabled, []{ features::toggleFly(); });
 
-    initConsole();
-
     while (!g_disable) {
         if (GetAsyncKeyState(VK_END) & 1) {
             g_disable = true;
             break;
         }
-        pollScreen();
-        Sleep(50);
+        Sleep(10);
     }
-
-    if (g_consoleReady) FreeConsole();
 
     rendering::removeSwapChainHook();
     features::hooks::ClientInstanceUpdate::remove();
