@@ -10,7 +10,7 @@
 
 namespace edu::features::hooks::LevelTick {
 
-static constexpr size_t kTickWorldIdx = 180;
+static constexpr size_t kTickWorldIdx = 181;
 
 using TickWorldFn = void(__fastcall*)(void*, const void*);
 static TickWorldFn o_tickWorld = nullptr;
