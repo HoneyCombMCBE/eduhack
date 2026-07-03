@@ -142,6 +142,7 @@ void render() {
                     m->toggle();
                     bool ne = m->enabled ? *m->enabled : false;
                     notifications::notify(m->name + (ne ? " enabled" : " disabled"));
+                    edu::logChat(m->name + (ne ? " enabled" : " disabled"));
                 }
             }
 
