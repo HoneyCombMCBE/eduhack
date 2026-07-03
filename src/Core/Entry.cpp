@@ -14,8 +14,8 @@ static DWORD WINAPI bootstrap(LPVOID) {
 
     features::hooks::ClientInstanceUpdate::install();
 
-    registerModule("Fly", "Toggle creative flight mode", &features::g_flyEnabled,
-                   []{ features::toggleFly(); });
+    registerModule("Fly", "Toggle creative flight mode", "Movement",
+                   &features::g_flyEnabled, []{ features::toggleFly(); });
 
     return 0;
 }

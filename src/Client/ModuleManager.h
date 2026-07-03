@@ -8,6 +8,7 @@ namespace edu {
 struct ModuleInfo {
     std::string name;
     std::string description;
+    std::string category;
     bool* enabled;
     std::function<void()> toggle;
 };
@@ -18,8 +19,19 @@ inline std::vector<ModuleInfo>& getModules() {
 }
 
 inline void registerModule(const std::string& name, const std::string& desc,
+                           const std::string& category,
                            bool* enabled, std::function<void()> toggle) {
-    getModules().push_back({name, desc, enabled, std::move(toggle)});
+    getModules().push_back({name, desc, category, enabled, std::move(toggle)});
+}
+
+inline std::vector<std::string> getCategories() {
+    std::vector<std::string> cats;
+    for (auto& m : getModules()) {
+        bool found = false;
+        for (auto& c : cats) if (c == m.category) { found = true; break; }
+        if (!found) cats.push_back(m.category);
+    }
+    return cats;
 }
 
 } // namespace edu
