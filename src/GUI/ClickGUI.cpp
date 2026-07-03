@@ -9,65 +9,27 @@
 #include <cmath>
 #include <vector>
 #include <string>
-#include <map>
 #include <windows.h>
-#include <MinHook.h>
 
 
 namespace edu::gui {
 
 static bool g_open = false;
-
-using GrabMouseFn = void(__fastcall*)(void*);
-static GrabMouseFn oGrabMouse = nullptr;
-
-static decltype(&ShowCursor) oShowCursor = nullptr;
-
-static bool g_hooksInstalled = false;
-
-static void __fastcall hkGrabMouse(void* self) {
-    if (g_open) return;
-    oGrabMouse(self);
-}
-
-static int WINAPI hkShowCursor(BOOL bShow) {
-    if (g_open && !bShow) return 0;
-    return oShowCursor(bShow);
-}
-
-static void installHooks(edu::ClientInstance* ci) {
-    if (g_hooksInstalled) return;
-    auto vtable = *reinterpret_cast<uintptr_t**>(ci);
-    void* target = reinterpret_cast<void*>(vtable[edu::ClientInstance::kGrabMouseIdx]);
-    MH_CreateHook(target, (void*)&hkGrabMouse, (void**)&oGrabMouse);
-    MH_EnableHook(target);
-    MH_CreateHook((void*)&ShowCursor, (void*)&hkShowCursor, (void**)&oShowCursor);
-    MH_EnableHook((void*)&ShowCursor);
-    g_hooksInstalled = true;
-}
+static int g_selCat = 0;
+static int g_selMod = 0;
 
 void toggle() {
     auto* ci = edu::getClientInstance();
     if (!ci) return;
 
-    installHooks(ci);
-
     if (!g_open) {
         std::string screen = ci->getScreenName();
-        edu::logChat("toggle: screen=" + screen);
         if (screen != "hud_screen" && screen != "pause_screen" &&
             screen != "f3_screen" && screen != "zoom_screen")
             return;
         g_open = true;
-        ci->releaseMouse();
-        int count = ShowCursor(TRUE);
-        while (count < 0) count = ShowCursor(TRUE);
-        SetCursor(LoadCursor(nullptr, IDC_ARROW));
     } else {
         g_open = false;
-        int count = ShowCursor(FALSE);
-        while (count >= 0) count = ShowCursor(FALSE);
-        ci->grabMouse();
     }
 }
 bool isOpen() { return g_open; }
@@ -96,19 +58,15 @@ static void ShadowRect(ImDrawList* dl, float x, float y, float w, float h,
     }
 }
 
-struct CategoryState {
-    float x = -1, y = -1;
-    bool dragging = false;
-    float dragOffX = 0, dragOffY = 0;
-    bool posInit = false;
-};
-
-static std::map<std::string, CategoryState> g_cats;
 static float g_animAlpha = 0.f;
 
-// own mouse tracking (like flarial MC:: globals)
-static bool g_mouseDown = false;
-static bool g_mouseClicked = false;
+static bool keyPressed(int vk) {
+    static bool prev[256] = {};
+    bool now = (GetAsyncKeyState(vk) & 0x8000) != 0;
+    bool pressed = now && !prev[vk];
+    prev[vk] = now;
+    return pressed;
+}
 
 void applyStyle() {
     ImGuiStyle& s = ImGui::GetStyle();
@@ -132,85 +90,80 @@ void render() {
     fl(g_animAlpha, g_open ? 1.f : 0.f, 0.15f * ff);
     if (g_animAlpha < 0.005f) return;
 
-
-    // update own mouse state from hardware
-    bool prevDown = g_mouseDown;
-    g_mouseDown = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
-    g_mouseClicked = g_mouseDown && !prevDown;
-
-    // get cursor position in client coords
-    POINT cursorPt;
-    GetCursorPos(&cursorPt);
-    HWND hw = GetForegroundWindow();
-    if (hw) ScreenToClient(hw, &cursorPt);
-    float mx = (float)cursorPt.x, my = (float)cursorPt.y;
-
     auto cats = edu::getCategories();
     auto& mods = edu::getModules();
+    int catCount = (int)cats.size();
+    if (catCount == 0) return;
+
+    if (g_selCat >= catCount) g_selCat = catCount - 1;
+
+    auto getModsForCat = [&](int ci) -> std::vector<ModuleInfo*> {
+        std::vector<ModuleInfo*> out;
+        for (auto& m : mods)
+            if (m.category == cats[ci]) out.push_back(&m);
+        return out;
+    };
+
+    if (g_open) {
+        if (keyPressed(VK_LEFT))  { g_selCat = (g_selCat - 1 + catCount) % catCount; g_selMod = 0; }
+        if (keyPressed(VK_RIGHT)) { g_selCat = (g_selCat + 1) % catCount; g_selMod = 0; }
+
+        auto curMods = getModsForCat(g_selCat);
+        int modCount = (int)curMods.size();
+
+        if (keyPressed(VK_UP))   g_selMod = (g_selMod - 1 + modCount) % modCount;
+        if (keyPressed(VK_DOWN)) g_selMod = (g_selMod + 1) % modCount;
+
+        if (keyPressed(VK_RETURN) && g_selMod < modCount) {
+            auto* m = curMods[g_selMod];
+            if (m->toggle) {
+                m->toggle();
+                bool ne = m->enabled ? *m->enabled : false;
+                notifications::notify(m->name + (ne ? " enabled" : " disabled"));
+            }
+        }
+    }
 
     float panelW   = sH * 0.28f;
-    float headerH   = sH * 0.05f;
-    float rowH      = sH * 0.042f;
-    float rowGap    = sH * 0.002f;
-    float padY      = sH * 0.008f;
-    float panelRnd  = rnd(18, sH);
-    float fontSize  = sH * 0.020f;
-    float headerFs  = sH * 0.024f;
+    float headerH  = sH * 0.05f;
+    float rowH     = sH * 0.042f;
+    float rowGap   = sH * 0.002f;
+    float padY     = sH * 0.008f;
+    float panelRnd = rnd(18, sH);
+    float fontSize = sH * 0.020f;
+    float headerFs = sH * 0.024f;
 
-    float totalW = (float)cats.size() * panelW + (float)(cats.size() - 1) * sH * 0.02f;
+    float totalW = (float)catCount * panelW + (float)(catCount - 1) * sH * 0.02f;
     float startX = (sW - totalW) / 2.f;
     float startY = sH * 0.12f;
 
-    int catIdx = 0;
-    for (auto& catName : cats) {
-        auto& cs = g_cats[catName];
-        if (!cs.posInit) {
-            cs.x = startX + catIdx * (panelW + sH * 0.02f);
-            cs.y = startY;
-            cs.posInit = true;
-        }
+    for (int ci = 0; ci < catCount; ci++) {
+        auto& catName = cats[ci];
+        bool isSel = (ci == g_selCat);
 
-        std::vector<ModuleInfo*> catMods;
-        for (auto& m : mods)
-            if (m.category == catName) catMods.push_back(&m);
-
+        auto catMods = getModsForCat(ci);
         int modCount = (int)catMods.size();
         float panelH = headerH + padY + modCount * (rowH + rowGap) + padY;
 
-        float px = cs.x, py = cs.y;
-
-        // drag handling
-        bool inHeader = (mx >= px && mx <= px + panelW && my >= py && my <= py + headerH);
-        if (inHeader && g_mouseClicked && !cs.dragging) {
-            bool anyOther = false;
-            for (auto& [k, v] : g_cats) if (v.dragging) anyOther = true;
-            if (!anyOther) {
-                cs.dragging = true;
-                cs.dragOffX = mx - px;
-                cs.dragOffY = my - py;
-            }
-        }
-        if (cs.dragging) {
-            if (g_mouseDown) {
-                cs.x = mx - cs.dragOffX;
-                cs.y = my - cs.dragOffY;
-                px = cs.x; py = cs.y;
-            } else {
-                cs.dragging = false;
-            }
-        }
+        float px = startX + ci * (panelW + sH * 0.02f);
+        float py = startY;
 
         ShadowRect(dl, px, py, panelW, panelH, panelRnd, 8, g_animAlpha);
 
         dl->AddRectFilled(ImVec2(px, py), ImVec2(px + panelW, py + panelH),
             C(22, 22, 26, 0.95f * g_animAlpha), panelRnd);
 
-        dl->AddRectFilled(ImVec2(px, py), ImVec2(px + panelW, py + headerH + panelRnd),
-            C(45, 30, 32, 0.8f * g_animAlpha), panelRnd, ImDrawFlags_RoundCornersTop);
-        dl->AddRectFilledMultiColor(
-            ImVec2(px + 1, py + 1), ImVec2(px + panelW - 1, py + headerH),
-            C(200, 50, 60, 0.35f * g_animAlpha), C(220, 80, 80, 0.25f * g_animAlpha),
-            C(200, 70, 70, 0.05f * g_animAlpha), C(180, 45, 55, 0.10f * g_animAlpha));
+        if (isSel) {
+            dl->AddRectFilled(ImVec2(px, py), ImVec2(px + panelW, py + headerH + panelRnd),
+                C(200, 50, 60, 0.9f * g_animAlpha), panelRnd, ImDrawFlags_RoundCornersTop);
+        } else {
+            dl->AddRectFilled(ImVec2(px, py), ImVec2(px + panelW, py + headerH + panelRnd),
+                C(45, 30, 32, 0.8f * g_animAlpha), panelRnd, ImDrawFlags_RoundCornersTop);
+            dl->AddRectFilledMultiColor(
+                ImVec2(px + 1, py + 1), ImVec2(px + panelW - 1, py + headerH),
+                C(200, 50, 60, 0.35f * g_animAlpha), C(220, 80, 80, 0.25f * g_animAlpha),
+                C(200, 70, 70, 0.05f * g_animAlpha), C(180, 45, 55, 0.10f * g_animAlpha));
+        }
 
         {
             ImVec2 ts = ImGui::CalcTextSize(catName.c_str());
@@ -229,6 +182,7 @@ void render() {
         for (int mi = 0; mi < modCount; mi++) {
             auto* m = catMods[mi];
             bool en = m->enabled ? *m->enabled : false;
+            bool highlighted = isSel && mi == g_selMod;
 
             float rowPad = sH * 0.004f;
             float rx = px + rowPad;
@@ -250,6 +204,11 @@ void render() {
                     C(15, 15, 18, 0.90f * g_animAlpha), rowRnd2);
             }
 
+            if (highlighted) {
+                dl->AddRect(ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
+                    C(255, 255, 255, 0.9f * g_animAlpha), rowRnd2, 0, 2.f);
+            }
+
             dl->AddRectFilled(ImVec2(rx + 2, ry + rowH), ImVec2(rx + rw - 2, ry + rowH + 2.f),
                 C(0, 0, 0, 0.12f * g_animAlpha), 1.f);
 
@@ -262,18 +221,8 @@ void render() {
                     C(255, 255, 255, g_animAlpha), m->name.c_str());
             }
 
-            bool inRow = (mx >= rx && mx <= rx + rw && my >= ry && my <= ry + rowH);
-            if (inRow && g_mouseClicked && !cs.dragging && m->toggle) {
-                m->toggle();
-                bool ne = m->enabled ? *m->enabled : false;
-                notifications::notify(m->name + (ne ? " enabled" : " disabled"));
-                edu::logChat(m->name + (ne ? " enabled" : " disabled"));
-            }
-
             rowY += rowH + rowGap;
         }
-
-        catIdx++;
     }
 }
 

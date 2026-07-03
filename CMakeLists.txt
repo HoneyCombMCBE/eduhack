@@ -114,6 +114,7 @@ set(EDU_SOURCES
     src/Client/ClientStore.cpp
     src/Features/Hooks/ClientInstanceUpdate.cpp
     src/Features/Fly.cpp
+    src/Features/CoordsDisplay.cpp
     src/Rendering/SwapChainHook.cpp
     src/GUI/ClickGUI.cpp
     src/GUI/Notifications.cpp

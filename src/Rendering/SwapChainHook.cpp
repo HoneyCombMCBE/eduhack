@@ -1,6 +1,7 @@
 #include "SwapChainHook.h"
 #include "../GUI/ClickGUI.h"
 #include "../GUI/Notifications.h"
+#include "../Features/CoordsDisplay.h"
 #include "../Input/KeyInput.h"
 #include <d3d11.h>
 #include <d3d11on12.h>
@@ -58,6 +59,7 @@ static LRESULT CALLBACK hk_WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
         case WM_MOUSEWHEEL: case WM_MOUSEHWHEEL:
         case WM_INPUT:
             return 0;
+        }
     }
 
     return CallWindowProcA(g_origWndProc, hwnd, msg, wp, lp);
@@ -205,6 +207,7 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     }
 
     gui::render();
+    features::renderCoords();
     gui::notifications::render();
 
     ImGui::Render();

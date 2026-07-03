@@ -3,6 +3,7 @@
 #include "../Client/ModuleManager.h"
 #include "../Features/Hooks/ClientInstanceUpdate.h"
 #include "../Features/Fly.h"
+#include "../Features/CoordsDisplay.h"
 #include "../Rendering/SwapChainHook.h"
 
 #include <windows.h>
@@ -19,6 +20,9 @@ static DWORD WINAPI init(LPVOID) {
 
     registerModule("Fly", "Toggle creative flight mode", "Movement",
                    &features::g_flyEnabled, []{ features::toggleFly(); });
+
+    registerModule("Coords", "Show coordinates on screen", "Render",
+                   &features::g_coordsEnabled, []{ features::toggleCoords(); });
 
     while (!g_disable) {
         if (GetAsyncKeyState(VK_END) & 1) {

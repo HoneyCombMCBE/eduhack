@@ -10,7 +10,7 @@ struct StateVectorComponent : IEntityComponent {
     static constexpr hat::fixed_string type_name = "struct StateVectorComponent";
     Vec3 pos;
     Vec3 posPrev;
-    Vec3 velocity;
+    Vec3 posDelta;
 };
 
 struct OnGroundFlagComponent : IEntityComponent {
