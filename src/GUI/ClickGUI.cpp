@@ -1,6 +1,8 @@
 #include "ClickGUI.h"
 #include "Notifications.h"
 #include "../Client/ModuleManager.h"
+#include "../Client/Chat.h"
+#include "../Client/ClientStore.h"
 
 #include <imgui.h>
 #include <algorithm>
@@ -8,12 +10,24 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <windows.h>
 
 namespace edu::gui {
 
 static bool g_open = false;
 
-void toggle() { g_open = !g_open; }
+void toggle() {
+    auto* ci = edu::getClientInstance();
+
+    g_open = !g_open;
+    // only touch mouse if we're in a world with no menus showing
+    bool inWorld = ci && ci->isInWorldNoMenus();
+    if (g_open) {
+        if (inWorld) ci->releaseMouse();
+    } else {
+        if (inWorld) ci->grabMouse();
+    }
+}
 bool isOpen() { return g_open; }
 
 static void fl(float& a, float b, float t) {
@@ -30,13 +44,13 @@ static ImU32 C(int r, int g, int b, float a = 1.f) {
 }
 
 static void ShadowRect(ImDrawList* dl, float x, float y, float w, float h,
-                        float rounding, int layers) {
+                        float rounding, int layers, float alpha) {
     if (layers < 1) return;
     for (int i = layers; i >= 1; i--) {
         float e = (float)i * 1.5f;
-        float a = 0.5f * (1.f - (float)i / (layers + 1.f));
-        a *= a;
-        dl->AddRectFilled(ImVec2(x-e,y-e), ImVec2(x+w+e,y+h+e), C(0,0,0,a), rounding);
+        float a2 = 0.5f * (1.f - (float)i / (layers + 1.f));
+        a2 *= a2;
+        dl->AddRectFilled(ImVec2(x-e,y-e), ImVec2(x+w+e,y+h+e), C(0,0,0,a2 * alpha), rounding);
     }
 }
 
@@ -49,6 +63,10 @@ struct CategoryState {
 
 static std::map<std::string, CategoryState> g_cats;
 static float g_animAlpha = 0.f;
+
+// own mouse tracking (like flarial MC:: globals)
+static bool g_mouseDown = false;
+static bool g_mouseClicked = false;
 
 void applyStyle() {
     ImGuiStyle& s = ImGui::GetStyle();
@@ -70,40 +88,50 @@ void render() {
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
     fl(g_animAlpha, g_open ? 1.f : 0.f, 0.15f * ff);
-    if (g_animAlpha < 0.01f) return;
+    if (g_animAlpha < 0.005f) return;
+
+    if (g_open) {
+        auto* ci = edu::getClientInstance();
+        if (ci && ci->isInWorldNoMenus()) ci->releaseMouse();
+    }
+
+    // update own mouse state from hardware
+    bool prevDown = g_mouseDown;
+    g_mouseDown = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
+    g_mouseClicked = g_mouseDown && !prevDown;
+
+    // get cursor position in client coords
+    POINT cursorPt;
+    GetCursorPos(&cursorPt);
+    HWND hw = GetForegroundWindow();
+    if (hw) ScreenToClient(hw, &cursorPt);
+    float mx = (float)cursorPt.x, my = (float)cursorPt.y;
 
     auto cats = edu::getCategories();
     auto& mods = edu::getModules();
 
-    // sizing
-    float panelW   = sH * 0.095f;
-    float headerH   = sH * 0.028f;
-    float rowH      = sH * 0.022f;
-    float rowGap    = sH * 0.001f;
-    float padY      = sH * 0.005f;
-    float panelRnd  = rnd(14, sH);
-    float fontSize  = sH * 0.013f;
-    float headerFs  = sH * 0.015f;
+    float panelW   = sH * 0.28f;
+    float headerH   = sH * 0.05f;
+    float rowH      = sH * 0.042f;
+    float rowGap    = sH * 0.002f;
+    float padY      = sH * 0.008f;
+    float panelRnd  = rnd(18, sH);
+    float fontSize  = sH * 0.020f;
+    float headerFs  = sH * 0.024f;
 
-    ImVec2 mp = io.MousePos;
-    bool mouseDown = ImGui::IsMouseDown(0);
-    bool mouseClicked = ImGui::IsMouseClicked(0);
-
-    // init category positions: spread evenly
-    float totalW = (float)cats.size() * panelW + (float)(cats.size() - 1) * sH * 0.012f;
+    float totalW = (float)cats.size() * panelW + (float)(cats.size() - 1) * sH * 0.02f;
     float startX = (sW - totalW) / 2.f;
-    float startY = sH * 0.15f;
+    float startY = sH * 0.12f;
 
     int catIdx = 0;
     for (auto& catName : cats) {
         auto& cs = g_cats[catName];
         if (!cs.posInit) {
-            cs.x = startX + catIdx * (panelW + sH * 0.012f);
+            cs.x = startX + catIdx * (panelW + sH * 0.02f);
             cs.y = startY;
             cs.posInit = true;
         }
 
-        // collect modules in this category
         std::vector<ModuleInfo*> catMods;
         for (auto& m : mods)
             if (m.category == catName) catMods.push_back(&m);
@@ -113,45 +141,39 @@ void render() {
 
         float px = cs.x, py = cs.y;
 
-        // drag handling: header area
-        bool inHeader = (mp.x >= px && mp.x <= px + panelW && mp.y >= py && mp.y <= py + headerH);
-        if (inHeader && mouseClicked && !cs.dragging) {
-            bool anyOtherDragging = false;
-            for (auto& [k, v] : g_cats) if (v.dragging) anyOtherDragging = true;
-            if (!anyOtherDragging) {
+        // drag handling
+        bool inHeader = (mx >= px && mx <= px + panelW && my >= py && my <= py + headerH);
+        if (inHeader && g_mouseClicked && !cs.dragging) {
+            bool anyOther = false;
+            for (auto& [k, v] : g_cats) if (v.dragging) anyOther = true;
+            if (!anyOther) {
                 cs.dragging = true;
-                cs.dragOffX = mp.x - px;
-                cs.dragOffY = mp.y - py;
+                cs.dragOffX = mx - px;
+                cs.dragOffY = my - py;
             }
         }
         if (cs.dragging) {
-            if (mouseDown) {
-                cs.x = mp.x - cs.dragOffX;
-                cs.y = mp.y - cs.dragOffY;
+            if (g_mouseDown) {
+                cs.x = mx - cs.dragOffX;
+                cs.y = my - cs.dragOffY;
                 px = cs.x; py = cs.y;
             } else {
                 cs.dragging = false;
             }
         }
 
-        // shadow
-        ShadowRect(dl, px, py, panelW, panelH, panelRnd, 6);
+        ShadowRect(dl, px, py, panelW, panelH, panelRnd, 8, g_animAlpha);
 
-        // panel bg: dark #1a1a1e
         dl->AddRectFilled(ImVec2(px, py), ImVec2(px + panelW, py + panelH),
-            C(26, 26, 30, 0.94f * g_animAlpha), panelRnd);
+            C(22, 22, 26, 0.95f * g_animAlpha), panelRnd);
 
-        // header bg: slight gradient accent
+        dl->AddRectFilled(ImVec2(px, py), ImVec2(px + panelW, py + headerH + panelRnd),
+            C(45, 30, 32, 0.8f * g_animAlpha), panelRnd, ImDrawFlags_RoundCornersTop);
         dl->AddRectFilledMultiColor(
-            ImVec2(px, py), ImVec2(px + panelW, py + headerH),
-            C(255, 60, 70, 0.25f * g_animAlpha), C(255, 100, 100, 0.15f * g_animAlpha),
-            C(255, 100, 100, 0.05f * g_animAlpha), C(255, 60, 70, 0.05f * g_animAlpha));
+            ImVec2(px + 1, py + 1), ImVec2(px + panelW - 1, py + headerH),
+            C(200, 50, 60, 0.35f * g_animAlpha), C(220, 80, 80, 0.25f * g_animAlpha),
+            C(200, 70, 70, 0.05f * g_animAlpha), C(180, 45, 55, 0.10f * g_animAlpha));
 
-        // round top corners clip
-        dl->AddRectFilled(ImVec2(px, py), ImVec2(px + panelW, py + headerH),
-            C(0, 0, 0, 0), panelRnd, ImDrawFlags_RoundCornersTop);
-
-        // header text
         {
             ImVec2 ts = ImGui::CalcTextSize(catName.c_str());
             float sc = headerFs / ImGui::GetFontSize();
@@ -161,67 +183,58 @@ void render() {
                 C(255, 255, 255, g_animAlpha), catName.c_str());
         }
 
-        // separator line under header
-        dl->AddLine(ImVec2(px + panelW * 0.08f, py + headerH),
-                    ImVec2(px + panelW * 0.92f, py + headerH),
-                    C(255, 255, 255, 0.08f * g_animAlpha), 1.f);
+        dl->AddLine(ImVec2(px + panelW * 0.06f, py + headerH),
+                    ImVec2(px + panelW * 0.94f, py + headerH),
+                    C(255, 255, 255, 0.06f * g_animAlpha), 1.f);
 
-        // module rows
         float rowY = py + headerH + padY;
         for (int mi = 0; mi < modCount; mi++) {
             auto* m = catMods[mi];
             bool en = m->enabled ? *m->enabled : false;
 
-            float rx = px + sH * 0.003f;
-            float rw = panelW - sH * 0.006f;
+            float rowPad = sH * 0.004f;
+            float rx = px + rowPad;
+            float rw = panelW - rowPad * 2.f;
             float ry = rowY;
-            float rowRnd = rnd(6, sH);
+            float rowRnd2 = rnd(8, sH);
 
-            // row bg
             if (en) {
-                // enabled: warm salmon/pink gradient
+                dl->AddRectFilled(ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
+                    C(255, 75, 85, 0.80f * g_animAlpha), rowRnd2);
                 dl->AddRectFilledMultiColor(
                     ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
-                    C(255, 80, 90, 0.85f * g_animAlpha),
-                    C(255, 130, 130, 0.75f * g_animAlpha),
-                    C(255, 140, 140, 0.65f * g_animAlpha),
-                    C(255, 90, 100, 0.75f * g_animAlpha));
-                // round the gradient manually with a clipped filled rect
-                dl->AddRectFilled(ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
-                    C(0, 0, 0, 0), rowRnd);
+                    C(255, 90, 100, 0.3f * g_animAlpha),
+                    C(255, 150, 140, 0.3f * g_animAlpha),
+                    C(255, 140, 130, 0.15f * g_animAlpha),
+                    C(255, 80, 90, 0.15f * g_animAlpha));
             } else {
-                // disabled: dark
                 dl->AddRectFilled(ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
-                    C(17, 17, 20, 0.85f * g_animAlpha), rowRnd);
+                    C(15, 15, 18, 0.90f * g_animAlpha), rowRnd2);
             }
 
-            // subtle shadow under each row
-            dl->AddRectFilled(ImVec2(rx, ry + rowH), ImVec2(rx + rw, ry + rowH + 1.5f),
-                C(0, 0, 0, 0.15f * g_animAlpha), 0.f);
+            dl->AddRectFilled(ImVec2(rx + 2, ry + rowH), ImVec2(rx + rw - 2, ry + rowH + 2.f),
+                C(0, 0, 0, 0.12f * g_animAlpha), 1.f);
 
-            // module name text centered
             {
                 ImVec2 ts = ImGui::CalcTextSize(m->name.c_str());
                 float sc = fontSize / ImGui::GetFontSize();
-                float tx = rx + (rw - ts.x * sc) / 2.f;
-                float ty = ry + (rowH - ts.y * sc) / 2.f;
-                dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx, ty),
+                float tx2 = rx + (rw - ts.x * sc) / 2.f;
+                float ty2 = ry + (rowH - ts.y * sc) / 2.f;
+                dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx2, ty2),
                     C(255, 255, 255, g_animAlpha), m->name.c_str());
             }
 
-            // click to toggle
-            bool inRow = (mp.x >= rx && mp.x <= rx + rw && mp.y >= ry && mp.y <= ry + rowH);
-            if (inRow && mouseClicked && !cs.dragging && m->toggle) {
+            bool inRow = (mx >= rx && mx <= rx + rw && my >= ry && my <= ry + rowH);
+            if (inRow && g_mouseClicked && !cs.dragging && m->toggle) {
                 m->toggle();
                 bool ne = m->enabled ? *m->enabled : false;
                 notifications::notify(m->name + (ne ? " enabled" : " disabled"));
+                // edu::logChat(m->name + (ne ? " §aenabled" : " §cdisabled"));
             }
-            if (inRow) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 
             rowY += rowH + rowGap;
         }
 
-        if (inHeader) ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         catIdx++;
     }
 }

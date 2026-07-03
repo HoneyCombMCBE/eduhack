@@ -15,20 +15,21 @@
 #include <vector>
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND, UINT, WPARAM, LPARAM);
+extern volatile bool g_disable;
 
 namespace edu::rendering {
 
-static ID3D11Device*            g_d3d11Device   = nullptr;
-static ID3D11DeviceContext*     g_d3d11Context  = nullptr;
-static ID3D11On12Device*        g_d3d11on12     = nullptr;
-static ID3D12CommandQueue*      g_cmdQueue      = nullptr;
-static HWND                     g_hwnd          = nullptr;
-static bool                     g_imgui         = false;
-static bool                     g_initFailed    = false;
-static bool                     g_isD3D12       = false;
-static bool                     g_welcomed      = false;
-static bool                     g_installed     = false;
-static WNDPROC                  g_origWndProc   = nullptr;
+static ID3D11Device*        g_d3d11Device  = nullptr;
+static ID3D11DeviceContext* g_d3d11Context = nullptr;
+static ID3D11On12Device*    g_d3d11on12    = nullptr;
+static ID3D12CommandQueue*  g_cmdQueue     = nullptr;
+static HWND                 g_hwnd         = nullptr;
+static bool                 g_imgui        = false;
+static bool                 g_initFailed   = false;
+static bool                 g_isD3D12      = false;
+static bool                 g_welcomed     = false;
+static bool                 g_installed    = false;
+static WNDPROC              g_origWndProc  = nullptr;
 
 struct FrameContext {
     ID3D11RenderTargetView* rtv     = nullptr;
@@ -67,10 +68,7 @@ static LRESULT CALLBACK hk_WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 }
 
 static void hk_ExecuteCommandLists(ID3D12CommandQueue* q, UINT n, ID3D12CommandList* const* lists) {
-    if (!g_cmdQueue) {
-        g_cmdQueue = q;
-        // LOG_INFO("SwapChain: captured command queue %p", q);
-    }
+    if (!g_cmdQueue) g_cmdQueue = q;
     oExecuteCommandLists(q, n, lists);
 }
 
@@ -101,7 +99,6 @@ static bool createFrameResources(IDXGISwapChain* sc) {
         ID3D12Resource* d3d12Buf = nullptr;
         if (FAILED(sc->GetBuffer(i, __uuidof(ID3D12Resource), (void**)&d3d12Buf)))
             return false;
-
         D3D11_RESOURCE_FLAGS flags11 = { D3D11_BIND_RENDER_TARGET };
         HRESULT hr = g_d3d11on12->CreateWrappedResource(
             d3d12Buf, &flags11,
@@ -111,7 +108,6 @@ static bool createFrameResources(IDXGISwapChain* sc) {
         );
         d3d12Buf->Release();
         if (FAILED(hr)) return false;
-
         ID3D11Texture2D* tex = nullptr;
         g_frames[i].wrapped->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
         if (!tex) return false;
@@ -129,24 +125,18 @@ static void initImGui(IDXGISwapChain* sc) {
     if (FAILED(sc->GetDesc(&desc))) return;
     g_hwnd = desc.OutputWindow;
 
-    // Try native D3D11
     if (SUCCEEDED(sc->GetDevice(__uuidof(ID3D11Device), (void**)&g_d3d11Device)) && g_d3d11Device) {
         g_isD3D12 = false;
         g_d3d11Device->GetImmediateContext(&g_d3d11Context);
-        // LOG_INFO("SwapChain: native D3D11 device");
     } else {
         g_d3d11Device = nullptr;
         g_isD3D12 = true;
-
-        if (!g_cmdQueue) return; // Wait for ExecuteCommandLists hook
-
+        if (!g_cmdQueue) return;
         ID3D12Device* d3d12dev = nullptr;
         if (FAILED(sc->GetDevice(__uuidof(ID3D12Device), (void**)&d3d12dev)) || !d3d12dev) {
             g_initFailed = true;
             return;
         }
-
-        // LOG_INFO("SwapChain: creating D3D11On12...");
         IUnknown* queueUnk = g_cmdQueue;
         HRESULT hr = D3D11On12CreateDevice(
             d3d12dev, D3D11_CREATE_DEVICE_BGRA_SUPPORT,
@@ -154,42 +144,30 @@ static void initImGui(IDXGISwapChain* sc) {
             &g_d3d11Device, &g_d3d11Context, nullptr
         );
         d3d12dev->Release();
-
-        if (FAILED(hr) || !g_d3d11Device) {
-            // LOG_ERROR("SwapChain: D3D11On12 failed (0x%08X)", hr);
-            g_initFailed = true;
-            return;
-        }
-
+        if (FAILED(hr) || !g_d3d11Device) { g_initFailed = true; return; }
         g_d3d11Device->QueryInterface(__uuidof(ID3D11On12Device), (void**)&g_d3d11on12);
-        // LOG_INFO("SwapChain: D3D11On12 created");
     }
 
-    if (!createFrameResources(sc)) {
-        // LOG_ERROR("SwapChain: frame resources failed");
-        g_initFailed = true;
-        return;
-    }
+    if (!createFrameResources(sc)) { g_initFailed = true; return; }
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+    ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 
     float fontPx = desc.BufferDesc.Height * 0.028f;
     if (fontPx < 18.0f) fontPx = 18.0f;
     if (fontPx > 48.0f) fontPx = 48.0f;
-    io.Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", fontPx);
+    ImGui::GetIO().Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\segoeui.ttf", fontPx);
 
     gui::applyStyle();
     ImGui_ImplWin32_Init(g_hwnd);
     ImGui_ImplDX11_Init(g_d3d11Device, g_d3d11Context);
     g_origWndProc = (WNDPROC)SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, (LONG_PTR)hk_WndProc);
     g_imgui = true;
-    // LOG_INFO("SwapChain: ImGui ready (D3D%s)", g_isD3D12 ? "11on12" : "11");
 }
 
 static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
+    if (g_disable) return oPresent(sc, sync, flags);
     initImGui(sc);
     if (!g_imgui) return oPresent(sc, sync, flags);
 
@@ -217,7 +195,7 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     ImGui::NewFrame();
 
     if (!g_welcomed) {
-        gui::notifications::notify("Aura Client loaded");
+        gui::notifications::notify("heheboi loaded");
         g_welcomed = true;
     }
 
@@ -248,14 +226,8 @@ bool isInstalled() { return g_installed; }
 
 void tryLazyInit() {
     if (g_installed) return;
-
-    // LOG_INFO("SwapChain: kiero::init...");
     auto status = kiero::init(kiero::RenderType::Auto);
-    if (status != kiero::Status::Success) {
-        // LOG_ERROR("SwapChain: kiero failed (%d)", (int)status);
-        return;
-    }
-    // LOG_INFO("SwapChain: kiero OK (render=%d)", (int)kiero::getRenderType());
+    if (status != kiero::Status::Success) return;
 
     kiero::bind<&IDXGISwapChain::Present>(&oPresent, &hk_Present);
     kiero::bind<&IDXGISwapChain::ResizeBuffers>(&oResizeBuffers, &hk_ResizeBuffers);
@@ -265,12 +237,10 @@ void tryLazyInit() {
         if (pExec) {
             MH_CreateHook((void*)pExec, (void*)&hk_ExecuteCommandLists, (void**)&oExecuteCommandLists);
             MH_EnableHook((void*)pExec);
-            // LOG_INFO("SwapChain: ExecuteCommandLists hooked");
         }
     }
 
     g_installed = true;
-    // LOG_INFO("SwapChain: hooks installed");
 }
 
 bool installSwapChainHook() { tryLazyInit(); return g_installed; }

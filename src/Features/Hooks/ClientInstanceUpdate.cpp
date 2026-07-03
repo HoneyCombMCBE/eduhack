@@ -3,6 +3,7 @@
 #include "../../Memory/Hooks.h"
 #include "../../Client/ClientInstance.h"
 #include "../../Client/ClientStore.h"
+#include "../../Rendering/SwapChainHook.h"
 #include "../Fly.h"
 
 #include <libhat/scanner.hpp>
@@ -23,6 +24,9 @@ static void* g_target = nullptr;
 static bool __fastcall hk_update(ClientInstance* self, bool isInitFinished) {
     if (!edu::hasClientInstance())
         edu::captureClientInstance(self);
+
+    if (!edu::rendering::isInstalled())
+        edu::rendering::tryLazyInit();
 
     void* player = self->getLocalPlayer();
     if (player)
