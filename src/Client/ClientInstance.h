@@ -27,6 +27,14 @@ public:
         return callVFunc<160, bool()>(this);
     }
 
+    void* getGameRenderer() const {
+        return callVFunc<187, void*()>(this);
+    }
+
+    void* getLevelRenderer() const {
+        return callVFunc<188, void*()>(this);
+    }
+
     bool isInGame() {
         return getLocalPlayer() != nullptr;
     }
