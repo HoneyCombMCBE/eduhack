@@ -40,18 +40,13 @@ static void testEntityCount() {
     void* gr = ptr187;
     if (!gr) { edu::logChat("GameRenderer: null"); return; }
 
-    float* vm = reinterpret_cast<float*>((char*)gr + 0x380);
-    float* pm = reinterpret_cast<float*>((char*)gr + 0x400);
-
     char buf[256];
-    for (int row = 0; row < 4; row++) {
-        std::snprintf(buf, sizeof(buf), "V%d: %.3f %.3f %.3f %.3f",
-            row, vm[row*4], vm[row*4+1], vm[row*4+2], vm[row*4+3]);
-        edu::logChat(buf);
-    }
-    for (int row = 0; row < 4; row++) {
-        std::snprintf(buf, sizeof(buf), "P%d: %.3f %.3f %.3f %.3f",
-            row, pm[row*4], pm[row*4+1], pm[row*4+2], pm[row*4+3]);
+    int offsets[] = {0x380, 0x3C0, 0x400, 0x440};
+    const char* names[] = {"0x380", "0x3C0", "0x400", "0x440"};
+    for (int m = 0; m < 4; m++) {
+        float* mat = reinterpret_cast<float*>((char*)gr + offsets[m]);
+        std::snprintf(buf, sizeof(buf), "%s diag: %.3f %.3f %.3f %.3f",
+            names[m], mat[0], mat[5], mat[10], mat[15]);
         edu::logChat(buf);
     }
 
