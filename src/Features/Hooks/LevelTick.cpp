@@ -32,27 +32,29 @@ static void testEntityCount() {
     if (!ci) return;
 
     auto ciVtable = *reinterpret_cast<uintptr_t**>(ci);
-    using GetLevelRendererFn = void*(__fastcall*)(const void*);
-    auto getLevelRenderer = reinterpret_cast<GetLevelRendererFn>(ciVtable[187]);
-    void* lr = getLevelRenderer(ci);
 
-    if (!lr) { edu::logChat("getLevelRenderer: null"); return; }
-    edu::logChat("getLevelRenderer: OK");
+    using GetPtrFn = void*(__fastcall*)(const void*);
+    void* ptr187 = reinterpret_cast<GetPtrFn>(ciVtable[187])(ci);
+    void* ptr188 = reinterpret_cast<GetPtrFn>(ciVtable[188])(ci);
 
-    void* gr = *reinterpret_cast<void**>((char*)lr + 0x3F8);
-    if (!gr) { edu::logChat("GameRenderer: null"); return; }
-    edu::logChat("GameRenderer: OK");
-
-    float* viewMatrix = reinterpret_cast<float*>((char*)gr + 0x380);
-    float* projMatrix = reinterpret_cast<float*>((char*)gr + 0x400);
-
-    char buf[128];
-    std::snprintf(buf, sizeof(buf), "view[0]: %.2f %.2f %.2f %.2f",
-        viewMatrix[0], viewMatrix[1], viewMatrix[2], viewMatrix[3]);
+    char buf[256];
+    std::snprintf(buf, sizeof(buf), "vtable[187]: %p  vtable[188]: %p",
+        ptr187, ptr188);
     edu::logChat(buf);
-    std::snprintf(buf, sizeof(buf), "proj[0]: %.2f %.2f %.2f %.2f",
-        projMatrix[0], projMatrix[1], projMatrix[2], projMatrix[3]);
-    edu::logChat(buf);
+
+    if (ptr187) {
+        float* tryView = reinterpret_cast<float*>((char*)ptr187 + 0x380);
+        std::snprintf(buf, sizeof(buf), "187+0x380: %.2f %.2f %.2f %.2f",
+            tryView[0], tryView[1], tryView[2], tryView[3]);
+        edu::logChat(buf);
+    }
+
+    if (ptr188) {
+        float* tryView = reinterpret_cast<float*>((char*)ptr188 + 0x380);
+        std::snprintf(buf, sizeof(buf), "188+0x380: %.2f %.2f %.2f %.2f",
+            tryView[0], tryView[1], tryView[2], tryView[3]);
+        edu::logChat(buf);
+    }
 
     cooldown = 20;
 }
