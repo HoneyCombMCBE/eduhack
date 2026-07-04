@@ -125,9 +125,9 @@ void renderArrayList() {
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot0++; continue; }
 
-        float rx = sW - totalTextW - padRight - accentW - fontSize * 0.4f + e.xSlide * (totalTextW + padRight + 30.f);
+        float rx = sW - totalTextW - padRight + e.xSlide * (totalTextW + padRight + 30.f);
         dl->AddRectFilledMultiColor(
-            ImVec2(rx - fontSize * 0.3f, e.y), ImVec2(sW, e.y + rowH),
+            ImVec2(rx - fontSize * 0.15f, e.y), ImVec2(sW, e.y + rowH),
             C(200, 120, 40, bgAlpha * alpha),
             C(200, 50, 60, bgAlpha * alpha),
             C(180, 40, 50, bgAlpha * alpha),
