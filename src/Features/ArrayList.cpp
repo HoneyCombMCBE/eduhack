@@ -111,18 +111,29 @@ void renderArrayList() {
         if (w > maxTextW) maxTextW = w;
     }
 
-    if (!visible.empty() && bgAlpha > 0.01f) {
-        float bgW = maxTextW + padRight * 2.f + accentW;
-        float bgH = visible.size() * (rowH + rowGap);
-        float bgX = sW - bgW;
+    int slot0 = 0;
+    for (auto& name : visible) {
+        auto& e = g_entries[name];
+        float targetY = padTop + slot0 * (rowH + rowGap);
+        if (!e.initialized) { e.y = targetY; e.initialized = true; }
+        fl(e.y, targetY, 0.15f * ff);
 
+        float textW = ImGui::CalcTextSize(name.c_str()).x * sc;
+        float bold = fontSize * 0.03f;
+        float totalTextW = textW + bold * (int)name.size();
+
+        float alpha = 1.f - e.xSlide;
+        if (alpha < 0.01f) { slot0++; continue; }
+
+        float rx = sW - totalTextW - padRight - accentW - 2 + e.xSlide * (totalTextW + padRight + 30.f);
         dl->AddRectFilledMultiColor(
-            ImVec2(bgX - bgW * 0.3f, padTop),
-            ImVec2(sW, padTop + bgH),
-            C(0, 0, 0, 0.0f),
-            C(180, 40, 50, bgAlpha),
-            C(180, 40, 50, bgAlpha),
-            C(0, 0, 0, 0.0f));
+            ImVec2(rx, e.y), ImVec2(sW, e.y + rowH),
+            C(200, 120, 40, bgAlpha * alpha),
+            C(200, 50, 60, bgAlpha * alpha),
+            C(180, 40, 50, bgAlpha * alpha),
+            C(220, 140, 50, bgAlpha * alpha));
+
+        slot0++;
     }
 
     int slot = 0;
