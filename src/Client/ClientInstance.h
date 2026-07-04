@@ -35,6 +35,10 @@ public:
         return callVFunc<188, void*()>(this);
     }
 
+    void* getCamera() const {
+        return callVFunc<205, void*()>(this);
+    }
+
     bool isInGame() {
         return getLocalPlayer() != nullptr;
     }
