@@ -30,14 +30,29 @@ static void testEntityCount() {
 
     auto* ci = edu::getClientInstance();
     if (!ci) return;
-    void* level = ci->getLevel();
-    if (!level) return;
 
-    auto vtable = *reinterpret_cast<uintptr_t**>(level);
-    using GetEntitiesFn = const std::vector<void*>&(__fastcall*)(const void*);
-    auto getEntities = reinterpret_cast<GetEntitiesFn>(vtable[224]);
-    auto& ents = getEntities(level);
-    edu::logChat("entities: " + std::to_string(ents.size()));
+    auto ciVtable = *reinterpret_cast<uintptr_t**>(ci);
+    using GetLevelRendererFn = void*(__fastcall*)(const void*);
+    auto getLevelRenderer = reinterpret_cast<GetLevelRendererFn>(ciVtable[187]);
+    void* lr = getLevelRenderer(ci);
+
+    if (!lr) { edu::logChat("getLevelRenderer: null"); return; }
+    edu::logChat("getLevelRenderer: OK");
+
+    void* gr = *reinterpret_cast<void**>((char*)lr + 0x3F8);
+    if (!gr) { edu::logChat("GameRenderer: null"); return; }
+    edu::logChat("GameRenderer: OK");
+
+    float* viewMatrix = reinterpret_cast<float*>((char*)gr + 0x380);
+    float* projMatrix = reinterpret_cast<float*>((char*)gr + 0x400);
+
+    char buf[128];
+    std::snprintf(buf, sizeof(buf), "view[0]: %.2f %.2f %.2f %.2f",
+        viewMatrix[0], viewMatrix[1], viewMatrix[2], viewMatrix[3]);
+    edu::logChat(buf);
+    std::snprintf(buf, sizeof(buf), "proj[0]: %.2f %.2f %.2f %.2f",
+        projMatrix[0], projMatrix[1], projMatrix[2], projMatrix[3]);
+    edu::logChat(buf);
 
     cooldown = 20;
 }
