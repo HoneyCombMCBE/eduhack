@@ -217,19 +217,9 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
             if (ci) {
                 void* gr = ci->getGameRenderer();
                 if (gr) {
-                    char buf[256];
-                    float* pm = reinterpret_cast<float*>((char*)gr + 0x400);
-                    for (int row = 0; row < 4; row++) {
-                        std::snprintf(buf, sizeof(buf), "P%d: %.4f %.4f %.4f %.4f",
-                            row, pm[row*4], pm[row*4+1], pm[row*4+2], pm[row*4+3]);
-                        edu::logChat(buf);
-                    }
-                    for (int off = 0x480; off <= 0x580; off += 0x40) {
-                        float* m = reinterpret_cast<float*>((char*)gr + off);
-                        std::snprintf(buf, sizeof(buf), "0x%X diag: %.3f %.3f %.3f %.3f",
-                            off, m[0], m[5], m[10], m[15]);
-                        edu::logChat(buf);
-                    }
+                    char buf[128];
+                    std::snprintf(buf, sizeof(buf), "GameRenderer: %p", gr);
+                    edu::logChat(buf);
                 }
             }
         }
