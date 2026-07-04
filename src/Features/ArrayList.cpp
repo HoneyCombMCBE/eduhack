@@ -50,11 +50,13 @@ void renderArrayList() {
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
     float fontSize = sH * (g_arrayListFontSize / 1000.f);
+    float sc = fontSize / ImGui::GetFontSize();
     float rowH = fontSize * 1.15f;
     float rowGap = sH * 0.001f;
     float padRight = sH * 0.008f;
     float padTop = sH * 0.008f;
     float bgAlpha = g_arrayListShadowAlpha / 100.f;
+    float accentW = sH * 0.003f;
 
     std::vector<std::string> active;
     for (auto& m : edu::getModules()) {
@@ -62,7 +64,13 @@ void renderArrayList() {
         if (m.enabled && *m.enabled)
             active.push_back(m.name);
     }
-    std::sort(active.begin(), active.end());
+
+    std::sort(active.begin(), active.end(), [&](const std::string& a, const std::string& b) {
+        float wa = ImGui::CalcTextSize(a.c_str()).x;
+        float wb = ImGui::CalcTextSize(b.c_str()).x;
+        if (wa != wb) return wa > wb;
+        return a < b;
+    });
 
     for (auto& name : active) {
         if (g_entries.find(name) == g_entries.end())
@@ -90,24 +98,27 @@ void renderArrayList() {
         if (std::find(active.begin(), active.end(), name) == active.end())
             visible.push_back(name);
     }
-    std::sort(visible.begin(), visible.end());
+    std::sort(visible.begin(), visible.end(), [&](const std::string& a, const std::string& b) {
+        float wa = ImGui::CalcTextSize(a.c_str()).x;
+        float wb = ImGui::CalcTextSize(b.c_str()).x;
+        if (wa != wb) return wa > wb;
+        return a < b;
+    });
 
     float maxTextW = 0.f;
-    float sc = fontSize / ImGui::GetFontSize();
     for (auto& name : visible) {
         float w = ImGui::CalcTextSize(name.c_str()).x * sc;
         if (w > maxTextW) maxTextW = w;
     }
 
-    float bgW = maxTextW + padRight * 2.f;
-    float bgH = visible.size() * (rowH + rowGap) - rowGap + padTop * 0.5f;
-    float bgX = sW - bgW;
-    float bgY = padTop * 0.5f;
-
     if (!visible.empty() && bgAlpha > 0.01f) {
+        float bgW = maxTextW + padRight * 2.f + accentW;
+        float bgH = visible.size() * (rowH + rowGap);
+        float bgX = sW - bgW;
+
         dl->AddRectFilledMultiColor(
-            ImVec2(bgX - bgW * 0.3f, bgY),
-            ImVec2(bgX + bgW, bgY + bgH),
+            ImVec2(bgX - bgW * 0.3f, padTop),
+            ImVec2(sW, padTop + bgH),
             C(0, 0, 0, 0.0f),
             C(40, 10, 12, bgAlpha),
             C(40, 10, 12, bgAlpha),
@@ -115,6 +126,7 @@ void renderArrayList() {
     }
 
     int slot = 0;
+    int totalVisible = (int)visible.size();
     for (auto& name : visible) {
         auto& e = g_entries[name];
         float targetY = padTop + slot * (rowH + rowGap);
@@ -127,18 +139,29 @@ void renderArrayList() {
         fl(e.y, targetY, 0.15f * ff);
 
         float textW = ImGui::CalcTextSize(name.c_str()).x * sc;
+        float bold = fontSize * 0.03f;
+        float totalTextW = textW + bold * (int)name.size();
 
-        float slideOff = e.xSlide * (textW + padRight + 30.f);
-        float tx = sW - textW - padRight + slideOff;
+        float slideOff = e.xSlide * (totalTextW + padRight + 30.f);
+        float tx = sW - totalTextW - padRight + slideOff;
         float ty = e.y + (rowH - ImGui::CalcTextSize(name.c_str()).y * sc) / 2.f;
 
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot++; continue; }
 
+        float t_slot = totalVisible > 1 ? (float)slot / (totalVisible - 1) : 0.f;
+        int ar = (int)(255 - t_slot * 40);
+        int ag = (int)(70 + t_slot * 30);
+        int ab = (int)(80 + t_slot * 30);
+
+        dl->AddRectFilled(
+            ImVec2(tx - accentW - 2, e.y),
+            ImVec2(tx - 2, e.y + rowH),
+            C(ar, ag, ab, alpha));
+
         float cx = tx;
         int len = (int)name.size();
         char ch[2] = {0, 0};
-        float bold = fontSize * 0.03f;
         for (int i = 0; i < len; i++) {
             float t = len > 1 ? (float)i / (len - 1) : 0.f;
             int r = (int)(255 - t * 35);
