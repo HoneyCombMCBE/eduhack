@@ -37,22 +37,21 @@ static void testEntityCount() {
     void* ptr187 = reinterpret_cast<GetPtrFn>(ciVtable[187])(ci);
     void* ptr188 = reinterpret_cast<GetPtrFn>(ciVtable[188])(ci);
 
-    char buf[256];
-    std::snprintf(buf, sizeof(buf), "vtable[187]: %p  vtable[188]: %p",
-        ptr187, ptr188);
-    edu::logChat(buf);
+    void* gr = ptr187;
+    if (!gr) { edu::logChat("GameRenderer: null"); return; }
 
-    if (ptr187) {
-        float* tryView = reinterpret_cast<float*>((char*)ptr187 + 0x380);
-        std::snprintf(buf, sizeof(buf), "187+0x380: %.2f %.2f %.2f %.2f",
-            tryView[0], tryView[1], tryView[2], tryView[3]);
+    float* vm = reinterpret_cast<float*>((char*)gr + 0x380);
+    float* pm = reinterpret_cast<float*>((char*)gr + 0x400);
+
+    char buf[256];
+    for (int row = 0; row < 4; row++) {
+        std::snprintf(buf, sizeof(buf), "V%d: %.3f %.3f %.3f %.3f",
+            row, vm[row*4], vm[row*4+1], vm[row*4+2], vm[row*4+3]);
         edu::logChat(buf);
     }
-
-    if (ptr188) {
-        float* tryView = reinterpret_cast<float*>((char*)ptr188 + 0x380);
-        std::snprintf(buf, sizeof(buf), "188+0x380: %.2f %.2f %.2f %.2f",
-            tryView[0], tryView[1], tryView[2], tryView[3]);
+    for (int row = 0; row < 4; row++) {
+        std::snprintf(buf, sizeof(buf), "P%d: %.3f %.3f %.3f %.3f",
+            row, pm[row*4], pm[row*4+1], pm[row*4+2], pm[row*4+3]);
         edu::logChat(buf);
     }
 
