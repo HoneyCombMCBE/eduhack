@@ -160,17 +160,6 @@ void renderArrayList() {
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot++; continue; }
 
-        float t_slot = totalVisible > 1 ? (float)slot / (totalVisible - 1) : 0.f;
-        int ar = (int)(255 - t_slot * 40);
-        int ag = (int)(70 + t_slot * 30);
-        int ab = (int)(80 + t_slot * 30);
-
-        float accentGap = fontSize * 0.25f;
-        dl->AddRectFilled(
-            ImVec2(tx - accentW - accentGap, e.y),
-            ImVec2(tx - accentGap, e.y + rowH),
-            C(ar, ag, ab, alpha));
-
         float cx = tx;
         int len = (int)name.size();
         char ch[2] = {0, 0};
