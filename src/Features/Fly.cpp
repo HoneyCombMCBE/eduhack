@@ -24,6 +24,7 @@ static constexpr size_t kMayFlyIdx   = 10;
 using SetAbilitiesFn = void(__fastcall*)(void*, const LayeredAbilities*);
 
 static bool g_wasEnabled = false;
+static bool g_hadMayFly = false;
 
 static void applyFly(void* localPlayer, bool enable) {
     auto* actor = reinterpret_cast<Actor*>(localPlayer);
@@ -50,10 +51,17 @@ void tickFly(void* localPlayer) {
     if (!localPlayer) return;
 
     if (g_flyEnabled) {
+        if (!g_wasEnabled) {
+            auto* actor = reinterpret_cast<Actor*>(localPlayer);
+            auto& ctx = actor->getEntity();
+            auto* mac = ctx.tryGetComponent<MovementAbilitiesComponent>();
+            g_hadMayFly = mac && mac->mayFly;
+        }
         applyFly(localPlayer, true);
         g_wasEnabled = true;
     } else if (g_wasEnabled) {
-        applyFly(localPlayer, false);
+        if (!g_hadMayFly)
+            applyFly(localPlayer, false);
         g_wasEnabled = false;
     }
 }
