@@ -11,6 +11,7 @@
 #include <string>
 #include <windows.h>
 
+extern volatile bool g_disable;
 
 namespace edu::gui {
 
@@ -138,16 +139,22 @@ void render() {
             if (keyPressed(VK_LEFT))  { g_selCat = (g_selCat - 1 + catCount) % catCount; g_selMod = 0; }
             if (keyPressed(VK_RIGHT)) { g_selCat = (g_selCat + 1) % catCount; g_selMod = 0; }
 
-            if (keyPressed(VK_UP))   g_selMod = (g_selMod - 1 + modCount) % modCount;
-            if (keyPressed(VK_DOWN)) g_selMod = (g_selMod + 1) % modCount;
+            int totalRows = modCount + 1;
+            if (keyPressed(VK_UP))   g_selMod = (g_selMod - 1 + totalRows) % totalRows;
+            if (keyPressed(VK_DOWN)) g_selMod = (g_selMod + 1) % totalRows;
 
-            if (keyPressed(VK_RETURN) && g_selMod < modCount) {
-                auto* m = curMods[g_selMod];
-                if (m->toggle) {
-                    m->toggle();
-                    bool ne = m->enabled ? *m->enabled : false;
-                    notifications::notify(m->name + (ne ? " enabled" : " disabled"));
-                    edu::logChat(m->name + (ne ? " enabled" : " disabled"));
+            if (keyPressed(VK_RETURN)) {
+                if (g_selMod < modCount) {
+                    auto* m = curMods[g_selMod];
+                    if (m->toggle) {
+                        m->toggle();
+                        bool ne = m->enabled ? *m->enabled : false;
+                        notifications::notify(m->name + (ne ? " enabled" : " disabled"));
+                        edu::logChat(m->name + (ne ? " enabled" : " disabled"));
+                    }
+                } else {
+                    g_open = false;
+                    g_disable = true;
                 }
             }
 
@@ -194,7 +201,7 @@ void render() {
         for (int mi = 0; mi < modCount; mi++)
             totalSettings += countSettingRows(ci, mi);
 
-        float panelH = headerH + padY + modCount * (rowH + rowGap)
+        float panelH = headerH + padY + (modCount + 1) * (rowH + rowGap)
                       + totalSettings * (settingH + rowGap) + padY;
 
         float px = startX + ci * (panelW + sH * 0.02f);
@@ -346,6 +353,31 @@ void render() {
                     rowY += settingH + rowGap;
                 }
             }
+        }
+
+        {
+            bool uninjectSel = isSel && g_selMod == modCount && !g_expanded;
+            float rowPad = sH * 0.004f;
+            float rx = px + rowPad;
+            float rw = panelW - rowPad * 2.f;
+            float ry = rowY;
+            float rowRnd2 = rnd(8, sH);
+
+            dl->AddRectFilled(ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
+                C(60, 15, 15, 0.90f * g_animAlpha), rowRnd2);
+
+            if (uninjectSel) {
+                dl->AddRect(ImVec2(rx, ry), ImVec2(rx + rw, ry + rowH),
+                    C(255, 100, 100, 0.9f * g_animAlpha), rowRnd2, 0, 2.f);
+            }
+
+            const char* label = "Uninject";
+            ImVec2 ts = ImGui::CalcTextSize(label);
+            float sc = fontSize / ImGui::GetFontSize();
+            float tx2 = rx + (rw - ts.x * sc) / 2.f;
+            float ty2 = ry + (rowH - ts.y * sc) / 2.f;
+            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx2, ty2),
+                C(255, 80, 80, g_animAlpha), label);
         }
     }
 }
