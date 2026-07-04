@@ -45,13 +45,11 @@ void renderArrayList() {
     float sW = io.DisplaySize.x, sH = io.DisplaySize.y;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
-    float fontSize = sH * 0.018f;
-    float rowH = sH * 0.028f;
-    float rowGap = sH * 0.003f;
-    float padX = sH * 0.012f;
-    float padRight = 10.f;
-    float padTop = 10.f;
-    float rounding = sH * 0.005f;
+    float fontSize = sH * 0.032f;
+    float rowH = fontSize * 1.15f;
+    float rowGap = sH * 0.001f;
+    float padRight = 4.f;
+    float padTop = 4.f;
 
     std::vector<std::string> active;
     for (auto& m : edu::getModules()) {
@@ -104,39 +102,39 @@ void renderArrayList() {
         ImVec2 ts = ImGui::CalcTextSize(name.c_str());
         float sc = fontSize / ImGui::GetFontSize();
         float textW = ts.x * sc;
-        float rectW = textW + padX * 2.f;
 
-        float slideOff = e.xSlide * (rectW + padRight + 20.f);
-        float rx = sW - rectW - padRight + slideOff;
-        float ry = e.y;
+        float slideOff = e.xSlide * (textW + padRight + 30.f);
+        float tx = sW - textW - padRight + slideOff;
+        float ty = e.y;
 
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot++; continue; }
 
-        float tx = rx + padX;
-        float ty = ry + (rowH - ts.y * sc) / 2.f;
-
+        float shadowExtend = textW * 0.6f;
         dl->AddRectFilledMultiColor(
-            ImVec2(rx - padX, ry), ImVec2(rx + rectW, ry + rowH),
-            C(0, 0, 0, 0.0f), C(0, 0, 0, 0.12f * alpha),
-            C(0, 0, 0, 0.12f * alpha), C(0, 0, 0, 0.0f));
+            ImVec2(tx - shadowExtend, ty - 1),
+            ImVec2(tx + textW + 2, ty + rowH + 1),
+            C(0, 0, 0, 0.0f),
+            C(0, 0, 0, 0.4f * alpha),
+            C(0, 0, 0, 0.4f * alpha),
+            C(0, 0, 0, 0.0f));
 
-        dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx + 1, ty + 1),
-            C(0, 0, 0, 0.35f * alpha), name.c_str());
+        dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx + 2, ty + 2),
+            C(0, 0, 0, 0.6f * alpha), name.c_str());
 
+        float cx = tx;
         int len = (int)name.size();
-        int mid = len / 2;
-        if (mid > 0) {
-            std::string left = name.substr(0, mid);
-            std::string right = name.substr(mid);
-            float leftW = ImGui::CalcTextSize(left.c_str()).x * sc;
-            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx, ty),
-                C(255, 90, 100, alpha), left.c_str());
-            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx + leftW, ty),
-                C(255, 160, 160, alpha), right.c_str());
-        } else {
-            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx, ty),
-                C(255, 90, 100, alpha), name.c_str());
+        char ch[2] = {0, 0};
+        for (int i = 0; i < len; i++) {
+            float t = len > 1 ? (float)i / (len - 1) : 0.f;
+            int r = (int)(255 - t * 35);
+            int g = (int)(70 + t * 25);
+            int b = (int)(80 + t * 25);
+
+            ch[0] = name[i];
+            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx, ty),
+                C(r, g, b, alpha), ch);
+            cx += ImGui::CalcTextSize(ch).x * sc;
         }
 
         slot++;
