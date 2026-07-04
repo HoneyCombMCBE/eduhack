@@ -117,6 +117,7 @@ set(EDU_SOURCES
     src/Features/Fly.cpp
     src/Features/CoordsDisplay.cpp
     src/Features/Sprint.cpp
+    src/Features/ArrayList.cpp
     src/Rendering/SwapChainHook.cpp
     src/GUI/ClickGUI.cpp
     src/GUI/Notifications.cpp

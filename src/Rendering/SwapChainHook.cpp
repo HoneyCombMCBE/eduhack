@@ -2,6 +2,7 @@
 #include "../GUI/ClickGUI.h"
 #include "../GUI/Notifications.h"
 #include "../Features/CoordsDisplay.h"
+#include "../Features/ArrayList.h"
 #include "../Input/KeyInput.h"
 #include <d3d11.h>
 #include <d3d11on12.h>
@@ -208,6 +209,7 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
 
     gui::render();
     features::renderCoords();
+    features::renderArrayList();
     gui::notifications::render();
 
     ImGui::Render();

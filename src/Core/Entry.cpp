@@ -6,6 +6,7 @@
 #include "../Features/Fly.h"
 #include "../Features/CoordsDisplay.h"
 #include "../Features/Sprint.h"
+#include "../Features/ArrayList.h"
 #include "../Rendering/SwapChainHook.h"
 
 #include <windows.h>
@@ -25,6 +26,9 @@ static DWORD WINAPI init(LPVOID) {
 
     registerModule("Sprint", "Always sprint when moving", "Movement",
                    &features::g_sprintEnabled, []{ features::toggleSprint(); });
+
+    registerModule("ArrayList", "Show enabled modules list", "Render",
+                   &features::g_arrayListEnabled, []{ features::toggleArrayList(); });
 
     registerModule("Coords", "Show coordinates on screen", "Render",
                    &features::g_coordsEnabled, []{ features::toggleCoords(); },
