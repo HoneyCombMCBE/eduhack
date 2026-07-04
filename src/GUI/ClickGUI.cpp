@@ -139,7 +139,7 @@ void render() {
             if (keyPressed(VK_LEFT))  { g_selCat = (g_selCat - 1 + catCount) % catCount; g_selMod = 0; }
             if (keyPressed(VK_RIGHT)) { g_selCat = (g_selCat + 1) % catCount; g_selMod = 0; }
 
-            int totalRows = modCount + 1;
+            int totalRows = modCount + (g_selCat == 0 ? 1 : 0);
             if (keyPressed(VK_UP))   g_selMod = (g_selMod - 1 + totalRows) % totalRows;
             if (keyPressed(VK_DOWN)) g_selMod = (g_selMod + 1) % totalRows;
 
@@ -152,7 +152,7 @@ void render() {
                         notifications::notify(m->name + (ne ? " enabled" : " disabled"));
                         edu::logChat(m->name + (ne ? " enabled" : " disabled"));
                     }
-                } else {
+                } else if (g_selCat == 0) {
                     g_open = false;
                     g_disable = true;
                 }
@@ -201,7 +201,8 @@ void render() {
         for (int mi = 0; mi < modCount; mi++)
             totalSettings += countSettingRows(ci, mi);
 
-        float panelH = headerH + padY + (modCount + 1) * (rowH + rowGap)
+        int extraRows = (ci == 0) ? 1 : 0;
+        float panelH = headerH + padY + (modCount + extraRows) * (rowH + rowGap)
                       + totalSettings * (settingH + rowGap) + padY;
 
         float px = startX + ci * (panelW + sH * 0.02f);
@@ -355,7 +356,7 @@ void render() {
             }
         }
 
-        {
+        if (ci == 0) {
             bool uninjectSel = isSel && g_selMod == modCount && !g_expanded;
             float rowPad = sH * 0.004f;
             float rx = px + rowPad;

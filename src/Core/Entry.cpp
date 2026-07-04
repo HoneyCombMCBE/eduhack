@@ -1,5 +1,6 @@
 #include "../Memory/Hooks.h"
 #include "../Client/IClient.h"
+#include "../Client/ClientStore.h"
 #include "../Client/ModuleManager.h"
 #include "../Features/Hooks/ClientInstanceUpdate.h"
 #include "../Features/Hooks/LevelTick.h"
@@ -18,6 +19,16 @@ static HMODULE g_hModule = nullptr;
 volatile bool g_disable = false;
 
 static DWORD WINAPI init(LPVOID) {
+    g_disable = false;
+
+    edu::getModules().clear();
+
+    features::g_flyEnabled = false;
+    features::g_sprintEnabled = false;
+    features::g_killAuraEnabled = false;
+    features::g_arrayListEnabled = false;
+    features::g_coordsEnabled = false;
+
     if (!Hooks::init()) return 1;
 
     features::hooks::ClientInstanceUpdate::install();
@@ -59,6 +70,7 @@ static DWORD WINAPI init(LPVOID) {
     features::hooks::ClientInstanceUpdate::remove();
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();
+    edu::resetClientInstance();
 
     FreeLibraryAndExitThread(g_hModule, 0);
 }

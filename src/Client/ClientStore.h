@@ -7,6 +7,7 @@ namespace edu {
 extern ClientInstance* g_ClientInstance;
 
 void captureClientInstance(ClientInstance* instance);
+void resetClientInstance();
 ClientInstance* getClientInstance();
 bool hasClientInstance();
 

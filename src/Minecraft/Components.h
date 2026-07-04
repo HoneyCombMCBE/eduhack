@@ -41,6 +41,12 @@ struct MoveInputComponent : IEntityComponent {
     uint16_t mFlagValues;             // 0x60
 };
 
+class ActorOwnerComponent : public IEntityComponent {
+public:
+    static constexpr hat::fixed_string type_name = "class ActorOwnerComponent";
+    void* mActor;
+};
+
 struct ActorIdentifierComponent : IEntityComponent {
     static constexpr hat::fixed_string type_name = "struct ActorIdentifierComponent";
     uintptr_t data[8];
@@ -104,4 +110,40 @@ struct entt::type_hash<Type> {
         return entt::hashed_string::value(name.data(), name.size());
     }
     constexpr operator entt::id_type() const noexcept { return value(); }
+};
+
+struct EntityRegistry : std::enable_shared_from_this<EntityRegistry> {
+    std::string name;
+    entt::basic_registry<EntityId> registry;
+    uint32_t id;
+};
+
+struct EntityContext {
+    EntityRegistry& registry;
+    entt::basic_registry<EntityId>& enttRegistry;
+    EntityId entity;
+    template<std::derived_from<IEntityComponent> T>
+    [[nodiscard]] T* tryGetComponent() {
+        return this->enttRegistry.try_get<T>(this->entity);
+    }
+
+    template<std::derived_from<IEntityComponent> T>
+    [[nodiscard]] const T* tryGetComponent() const {
+        return this->enttRegistry.try_get<T>(this->entity);
+    }
+
+    template<std::derived_from<IEntityComponent> T>
+    [[nodiscard]] bool hasComponent() const {
+        return this->enttRegistry.all_of<T>(this->entity);
+    }
+
+    template<std::derived_from<IEntityComponent> T>
+    T& getOrAddComponent() {
+        return this->enttRegistry.get_or_emplace<T>(this->entity);
+    }
+
+    template<std::derived_from<IEntityComponent> T>
+    void removeComponent() {
+        this->enttRegistry.remove<T>(this->entity);
+    }
 };

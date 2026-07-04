@@ -46,7 +46,9 @@ void remove() {
     if (g_target) {
         MH_DisableHook(g_target);
         MH_RemoveHook(g_target);
+        g_target = nullptr;
     }
+    o_tickWorld = nullptr;
 }
 
 } // namespace edu::features::hooks::LevelTick

@@ -10,6 +10,11 @@ namespace {
 std::atomic<bool> g_captured{ false };
 }
 
+void resetClientInstance() {
+    g_ClientInstance = nullptr;
+    g_captured.store(false, std::memory_order_release);
+}
+
 void captureClientInstance(ClientInstance* instance) {
     if (!instance) return;
     bool expected = false;

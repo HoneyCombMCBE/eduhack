@@ -5,7 +5,6 @@
 #include "../Minecraft/Components.h"
 
 #include <cmath>
-#include <vector>
 
 namespace edu::features {
 
@@ -18,11 +17,9 @@ static constexpr int kDelay = 10;
 static constexpr size_t kGameModeOffset = 0xA80;
 static constexpr size_t kAttackIdx = 15;
 static constexpr size_t kSwingIdx = 111;
-static constexpr size_t kGetRuntimeActorListIdx = 317;
 
 using AttackFn = bool(__fastcall*)(void*, void*);
 using SwingFn = bool(__fastcall*)(void*, int);
-using GetActorListFn = const std::vector<void*>&(__fastcall*)(const void*);
 
 void tickKillAura(void* localPlayer) {
     if (!localPlayer || !g_killAuraEnabled) return;
@@ -30,41 +27,32 @@ void tickKillAura(void* localPlayer) {
     static int delay = 0;
     if (delay > 0) { delay--; return; }
 
-    auto* ci = edu::getClientInstance();
-    if (!ci) return;
-    void* level = ci->getLevel();
-    if (!level) return;
-
     auto* actor = reinterpret_cast<Actor*>(localPlayer);
     auto& ctx = actor->getEntity();
     auto* sv = ctx.tryGetComponent<StateVectorComponent>();
     if (!sv) return;
 
-    auto levelVtable = *reinterpret_cast<uintptr_t**>(level);
-    auto getActorList = reinterpret_cast<GetActorListFn>(levelVtable[kGetRuntimeActorListIdx]);
-    auto& actors = getActorList(level);
+    auto& reg = ctx.enttRegistry;
+    auto view = reg.view<ActorOwnerComponent, StateVectorComponent>();
 
     void* closestActor = nullptr;
     float closestDist = kRange;
 
-    for (auto* entPtr : actors) {
-        if (!entPtr || entPtr == localPlayer) continue;
+    for (auto ent : view) {
+        auto& aoc = view.get<ActorOwnerComponent>(ent);
+        if (!aoc.mActor || aoc.mActor == localPlayer) continue;
 
-        auto* ent = reinterpret_cast<Actor*>(entPtr);
-        auto& entCtx = ent->getEntity();
-        auto* entSv = entCtx.tryGetComponent<StateVectorComponent>();
-        if (!entSv) continue;
+        auto& entSv = view.get<StateVectorComponent>(ent);
 
-        float dx = entSv->pos.x - sv->pos.x;
-        float dy = entSv->pos.y - sv->pos.y;
-        float dz = entSv->pos.z - sv->pos.z;
+        float dx = entSv.pos.x - sv->pos.x;
+        float dy = entSv.pos.y - sv->pos.y;
+        float dz = entSv.pos.z - sv->pos.z;
         float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
 
-        if (dist < 0.1f) continue;
-        if (dist >= closestDist) continue;
+        if (dist < 0.1f || dist >= closestDist) continue;
 
         closestDist = dist;
-        closestActor = entPtr;
+        closestActor = aoc.mActor;
     }
 
     if (!closestActor) return;

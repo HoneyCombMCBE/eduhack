@@ -20,6 +20,7 @@ using UpdateFn = bool (__fastcall*)(ClientInstance*, bool);
 
 static UpdateFn o_update = nullptr;
 static void* g_target = nullptr;
+static bool g_tickHooked = false;
 
 static bool __fastcall hk_update(ClientInstance* self, bool isInitFinished) {
     if (!edu::hasClientInstance())
@@ -28,9 +29,8 @@ static bool __fastcall hk_update(ClientInstance* self, bool isInitFinished) {
     if (!edu::rendering::isInstalled())
         edu::rendering::tryLazyInit();
 
-    static bool tickHooked = false;
-    if (!tickHooked && self->getLocalPlayer()) {
-        tickHooked = edu::features::hooks::LevelTick::install();
+    if (!g_tickHooked && self->getLocalPlayer()) {
+        g_tickHooked = edu::features::hooks::LevelTick::install();
     }
 
     return o_update(self, isInitFinished);
@@ -55,7 +55,10 @@ void remove() {
     if (g_target) {
         MH_DisableHook(g_target);
         MH_RemoveHook(g_target);
+        g_target = nullptr;
     }
+    o_update = nullptr;
+    g_tickHooked = false;
 }
 
 } // namespace edu::features::hooks::ClientInstanceUpdate
