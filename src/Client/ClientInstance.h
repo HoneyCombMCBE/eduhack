@@ -16,7 +16,7 @@ public:
     }
 
     void* getLevel() {
-        return callVFunc<170, void*()>(this);
+        return callVFunc<171, void*()>(this);
     }
 
     std::string getScreenName() const {

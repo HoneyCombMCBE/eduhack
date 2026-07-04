@@ -3,10 +3,13 @@
 #include "../../Memory/Hooks.h"
 #include "../../Client/ClientInstance.h"
 #include "../../Client/ClientStore.h"
+#include "../../Client/Chat.h"
 #include "../Fly.h"
 #include "../Sprint.h"
 
 #include <MinHook.h>
+#include <vector>
+#include <string>
 
 namespace edu::features::hooks::LevelTick {
 
@@ -16,11 +19,35 @@ using TickWorldFn = void(__fastcall*)(void*, const void*);
 static TickWorldFn o_tickWorld = nullptr;
 static void* g_target = nullptr;
 
+static void testEntityCount() {
+    static int cooldown = 0;
+    if (cooldown > 0) { cooldown--; return; }
+
+    static bool prevF6 = false;
+    bool f6 = (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
+    if (!f6 || prevF6) { prevF6 = f6; return; }
+    prevF6 = f6;
+
+    auto* ci = edu::getClientInstance();
+    if (!ci) return;
+    void* level = ci->getLevel();
+    if (!level) return;
+
+    auto vtable = *reinterpret_cast<uintptr_t**>(level);
+    using GetEntitiesFn = const std::vector<void*>&(__fastcall*)(const void*);
+    auto getEntities = reinterpret_cast<GetEntitiesFn>(vtable[229]);
+    auto& ents = getEntities(level);
+    edu::logChat("entities: " + std::to_string(ents.size()));
+
+    cooldown = 20;
+}
+
 static void __fastcall hk_tickWorld(void* player, const void* tick) {
     o_tickWorld(player, tick);
 
     edu::features::tickFly(player);
     edu::features::tickSprint(player);
+    testEntityCount();
 }
 
 bool install() {
