@@ -35,7 +35,7 @@ static void testEntityCount() {
 
     auto vtable = *reinterpret_cast<uintptr_t**>(level);
     using GetEntitiesFn = const std::vector<void*>&(__fastcall*)(const void*);
-    auto getEntities = reinterpret_cast<GetEntitiesFn>(vtable[229]);
+    auto getEntities = reinterpret_cast<GetEntitiesFn>(vtable[224]);
     auto& ents = getEntities(level);
     edu::logChat("entities: " + std::to_string(ents.size()));
 
