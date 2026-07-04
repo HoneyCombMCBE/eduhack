@@ -27,23 +27,8 @@ static DWORD WINAPI init(LPVOID) {
     registerModule("Sprint", "Always sprint when moving", "Movement",
                    &features::g_sprintEnabled, []{ features::toggleSprint(); });
 
-    {
-        edu::ModuleSetting shadow;
-        shadow.name = "Shadow";
-        shadow.type = edu::SettingType::Slider;
-        shadow.selected = &features::g_arrayListShadowAlpha;
-        shadow.min = 0; shadow.max = 100; shadow.step = 5;
-
-        edu::ModuleSetting font;
-        font.name = "Font Size";
-        font.type = edu::SettingType::Slider;
-        font.selected = &features::g_arrayListFontSize;
-        font.min = 15; font.max = 60; font.step = 1;
-
-        registerModule("ArrayList", "Show enabled modules list", "Render",
-                       &features::g_arrayListEnabled, []{ features::toggleArrayList(); },
-                       {shadow, font});
-    }
+    registerModule("ArrayList", "Show enabled modules list", "Render",
+                   &features::g_arrayListEnabled, []{ features::toggleArrayList(); });
 
     {
         edu::ModuleSetting pos;

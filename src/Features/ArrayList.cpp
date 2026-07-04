@@ -12,7 +12,7 @@
 namespace edu::features {
 
 bool g_arrayListEnabled = false;
-int g_arrayListShadowAlpha = 25;
+int g_arrayListShadowAlpha = 75;
 int g_arrayListFontSize = 32;
 
 void toggleArrayList() { g_arrayListEnabled = !g_arrayListEnabled; }
@@ -125,9 +125,9 @@ void renderArrayList() {
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot0++; continue; }
 
-        float rx = sW - totalTextW - padRight - accentW - 2 + e.xSlide * (totalTextW + padRight + 30.f);
+        float rx = sW - totalTextW - padRight - accentW - fontSize * 0.4f + e.xSlide * (totalTextW + padRight + 30.f);
         dl->AddRectFilledMultiColor(
-            ImVec2(rx, e.y), ImVec2(sW, e.y + rowH),
+            ImVec2(rx - fontSize * 0.3f, e.y), ImVec2(sW, e.y + rowH),
             C(200, 120, 40, bgAlpha * alpha),
             C(200, 50, 60, bgAlpha * alpha),
             C(180, 40, 50, bgAlpha * alpha),
@@ -165,9 +165,10 @@ void renderArrayList() {
         int ag = (int)(70 + t_slot * 30);
         int ab = (int)(80 + t_slot * 30);
 
+        float accentGap = fontSize * 0.25f;
         dl->AddRectFilled(
-            ImVec2(tx - accentW - 2, e.y),
-            ImVec2(tx - 2, e.y + rowH),
+            ImVec2(tx - accentW - accentGap, e.y),
+            ImVec2(tx - accentGap, e.y + rowH),
             C(ar, ag, ab, alpha));
 
         float cx = tx;
