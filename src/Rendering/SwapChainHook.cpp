@@ -209,36 +209,6 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
         escWas = escNow;
     }
 
-    {
-        static bool prevF7 = false;
-        bool f7 = (GetAsyncKeyState(VK_F7) & 0x8000) != 0;
-        if (f7 && !prevF7) {
-            auto* ci = edu::getClientInstance();
-            if (ci) {
-                void* gr = ci->getGameRenderer();
-                if (gr) {
-                    void* cam = ci->getCamera();
-                    if (!cam) { edu::logChat("Camera: null"); }
-                    else {
-                        char buf[128];
-                        float* invView = reinterpret_cast<float*>((char*)cam + 0xC0);
-                        float aspect = *reinterpret_cast<float*>((char*)cam + 0x130);
-                        float fov = *reinterpret_cast<float*>((char*)cam + 0x134);
-                        float znear = *reinterpret_cast<float*>((char*)cam + 0x138);
-                        float zfar = *reinterpret_cast<float*>((char*)cam + 0x13C);
-                        std::snprintf(buf, sizeof(buf), "invView diag: %.3f %.3f %.3f %.3f",
-                            invView[0], invView[5], invView[10], invView[15]);
-                        edu::logChat(buf);
-                        std::snprintf(buf, sizeof(buf), "aspect: %.3f fov: %.3f near: %.3f far: %.3f",
-                            aspect, fov, znear, zfar);
-                        edu::logChat(buf);
-                    }
-                }
-            }
-        }
-        prevF7 = f7;
-    }
-
     gui::render();
     features::renderCoords();
     features::renderArrayList();
