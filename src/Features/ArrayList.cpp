@@ -120,8 +120,8 @@ void renderArrayList() {
             ImVec2(bgX - bgW * 0.3f, padTop),
             ImVec2(sW, padTop + bgH),
             C(0, 0, 0, 0.0f),
-            C(40, 10, 12, bgAlpha),
-            C(40, 10, 12, bgAlpha),
+            C(180, 40, 50, bgAlpha),
+            C(180, 40, 50, bgAlpha),
             C(0, 0, 0, 0.0f));
     }
 
