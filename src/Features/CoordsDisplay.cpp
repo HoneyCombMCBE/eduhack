@@ -15,6 +15,7 @@ void toggleCoords() { g_coordsEnabled = !g_coordsEnabled; }
 
 void renderCoords() {
     if (!g_coordsEnabled) return;
+    if (!edu::isOnHudScreen()) return;
 
     auto* ci = edu::getClientInstance();
     if (!ci) return;

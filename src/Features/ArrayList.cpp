@@ -1,5 +1,6 @@
 #include "ArrayList.h"
 #include "../Client/ModuleManager.h"
+#include "../Client/ClientStore.h"
 
 #include <imgui.h>
 #include <algorithm>
@@ -11,6 +12,8 @@
 namespace edu::features {
 
 bool g_arrayListEnabled = false;
+int g_arrayListShadowAlpha = 25;
+int g_arrayListFontSize = 32;
 
 void toggleArrayList() { g_arrayListEnabled = !g_arrayListEnabled; }
 
@@ -38,6 +41,7 @@ static std::map<std::string, EntryAnim> g_entries;
 
 void renderArrayList() {
     if (!g_arrayListEnabled) return;
+    if (!edu::isOnHudScreen()) return;
 
     auto& io = ImGui::GetIO();
     float dt = io.DeltaTime > 0 ? io.DeltaTime : 0.016f;
@@ -45,11 +49,12 @@ void renderArrayList() {
     float sW = io.DisplaySize.x, sH = io.DisplaySize.y;
     ImDrawList* dl = ImGui::GetBackgroundDrawList();
 
-    float fontSize = sH * 0.032f;
+    float fontSize = sH * (g_arrayListFontSize / 1000.f);
     float rowH = fontSize * 1.15f;
     float rowGap = sH * 0.001f;
-    float padRight = 4.f;
-    float padTop = 4.f;
+    float padRight = sH * 0.008f;
+    float padTop = sH * 0.008f;
+    float bgAlpha = g_arrayListShadowAlpha / 100.f;
 
     std::vector<std::string> active;
     for (auto& m : edu::getModules()) {
@@ -87,6 +92,28 @@ void renderArrayList() {
     }
     std::sort(visible.begin(), visible.end());
 
+    float maxTextW = 0.f;
+    float sc = fontSize / ImGui::GetFontSize();
+    for (auto& name : visible) {
+        float w = ImGui::CalcTextSize(name.c_str()).x * sc;
+        if (w > maxTextW) maxTextW = w;
+    }
+
+    float bgW = maxTextW + padRight * 2.f;
+    float bgH = visible.size() * (rowH + rowGap) - rowGap + padTop * 0.5f;
+    float bgX = sW - bgW;
+    float bgY = padTop * 0.5f;
+
+    if (!visible.empty() && bgAlpha > 0.01f) {
+        dl->AddRectFilledMultiColor(
+            ImVec2(bgX - bgW * 0.3f, bgY),
+            ImVec2(bgX + bgW, bgY + bgH),
+            C(0, 0, 0, 0.0f),
+            C(40, 10, 12, bgAlpha),
+            C(40, 10, 12, bgAlpha),
+            C(0, 0, 0, 0.0f));
+    }
+
     int slot = 0;
     for (auto& name : visible) {
         auto& e = g_entries[name];
@@ -99,42 +126,30 @@ void renderArrayList() {
 
         fl(e.y, targetY, 0.15f * ff);
 
-        ImVec2 ts = ImGui::CalcTextSize(name.c_str());
-        float sc = fontSize / ImGui::GetFontSize();
-        float textW = ts.x * sc;
+        float textW = ImGui::CalcTextSize(name.c_str()).x * sc;
 
         float slideOff = e.xSlide * (textW + padRight + 30.f);
         float tx = sW - textW - padRight + slideOff;
-        float ty = e.y;
+        float ty = e.y + (rowH - ImGui::CalcTextSize(name.c_str()).y * sc) / 2.f;
 
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot++; continue; }
 
-        float shadowExtend = textW * 0.6f;
-        dl->AddRectFilledMultiColor(
-            ImVec2(tx - shadowExtend, ty - 1),
-            ImVec2(tx + textW + 2, ty + rowH + 1),
-            C(0, 0, 0, 0.0f),
-            C(0, 0, 0, 0.4f * alpha),
-            C(0, 0, 0, 0.4f * alpha),
-            C(0, 0, 0, 0.0f));
-
-        dl->AddText(ImGui::GetFont(), fontSize, ImVec2(tx + 2, ty + 2),
-            C(0, 0, 0, 0.6f * alpha), name.c_str());
-
         float cx = tx;
         int len = (int)name.size();
         char ch[2] = {0, 0};
+        float bold = fontSize * 0.03f;
         for (int i = 0; i < len; i++) {
             float t = len > 1 ? (float)i / (len - 1) : 0.f;
             int r = (int)(255 - t * 35);
-            int g = (int)(70 + t * 25);
+            int g = (int)(130 + t * 40);
             int b = (int)(80 + t * 25);
+            ImU32 col = C(r, g, b, alpha);
 
             ch[0] = name[i];
-            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx, ty),
-                C(r, g, b, alpha), ch);
-            cx += ImGui::CalcTextSize(ch).x * sc;
+            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx + bold, ty), col, ch);
+            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx, ty), col, ch);
+            cx += ImGui::CalcTextSize(ch).x * sc + bold;
         }
 
         slot++;

@@ -5,10 +5,16 @@
 
 namespace edu {
 
+enum class SettingType { Dropdown, Slider };
+
 struct ModuleSetting {
     std::string name;
+    SettingType type = SettingType::Dropdown;
     std::vector<std::string> options;
     int* selected;
+    int min = 0;
+    int max = 100;
+    int step = 1;
 };
 
 struct ModuleInfo {

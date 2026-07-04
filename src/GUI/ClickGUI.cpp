@@ -123,10 +123,15 @@ void render() {
                 if (keyPressed(VK_DOWN)) g_selSetting = (g_selSetting + 1) % settingCount;
 
                 auto& s = m->settings[g_selSetting];
-                int optCount = (int)s.options.size();
-                if (optCount > 0 && s.selected) {
-                    if (keyPressed(VK_LEFT))  *s.selected = (*s.selected - 1 + optCount) % optCount;
-                    if (keyPressed(VK_RIGHT)) *s.selected = (*s.selected + 1) % optCount;
+                if (s.type == edu::SettingType::Dropdown) {
+                    int optCount = (int)s.options.size();
+                    if (optCount > 0 && s.selected) {
+                        if (keyPressed(VK_LEFT))  *s.selected = (*s.selected - 1 + optCount) % optCount;
+                        if (keyPressed(VK_RIGHT)) *s.selected = (*s.selected + 1) % optCount;
+                    }
+                } else if (s.type == edu::SettingType::Slider && s.selected) {
+                    if (keyPressed(VK_LEFT))  { *s.selected -= s.step; if (*s.selected < s.min) *s.selected = s.min; }
+                    if (keyPressed(VK_RIGHT)) { *s.selected += s.step; if (*s.selected > s.max) *s.selected = s.max; }
                 }
             }
         } else {
@@ -298,14 +303,45 @@ void render() {
                             C(255, 200, 200, 0.8f * g_animAlpha), sRnd, 0, 1.5f);
                     }
 
-                    std::string val = (s.selected && *s.selected < (int)s.options.size())
-                        ? s.options[*s.selected] : "?";
-                    std::string label = s.name + ":  < " + val + " >";
-
                     float lx = sx + sH * 0.01f;
                     float ly = sy + (settingH - settingFs) / 2.f;
-                    dl->AddText(ImGui::GetFont(), settingFs, ImVec2(lx, ly),
-                        C(255, 255, 255, (sSel ? 1.f : 0.6f) * g_animAlpha), label.c_str());
+
+                    if (s.type == edu::SettingType::Slider && s.selected) {
+                        dl->AddText(ImGui::GetFont(), settingFs, ImVec2(lx, ly),
+                            C(255, 255, 255, (sSel ? 1.f : 0.6f) * g_animAlpha), s.name.c_str());
+
+                        float barX = sx + sw * 0.45f;
+                        float barW = sw * 0.45f;
+                        float barY = sy + settingH * 0.42f;
+                        float barH = settingH * 0.16f;
+                        float frac = (s.max > s.min)
+                            ? (float)(*s.selected - s.min) / (s.max - s.min) : 0.f;
+                        float circR = settingH * 0.22f;
+                        float circX = barX + barW * frac;
+                        float circY = barY + barH * 0.5f;
+
+                        dl->AddRectFilled(ImVec2(barX, barY), ImVec2(barX + barW, barY + barH),
+                            C(50, 50, 55, 0.8f * g_animAlpha), barH * 0.5f);
+                        dl->AddRectFilled(ImVec2(barX, barY), ImVec2(circX, barY + barH),
+                            C(255, 85, 95, 0.9f * g_animAlpha), barH * 0.5f);
+
+                        dl->AddCircleFilled(ImVec2(circX, circY), circR,
+                            C(255, 120, 130, 0.9f * g_animAlpha));
+                        dl->AddCircle(ImVec2(circX, circY), circR,
+                            C(255, 255, 255, 0.8f * g_animAlpha), 0, 1.5f);
+
+                        std::string valTxt = std::to_string(*s.selected);
+                        float valX = barX + barW + sH * 0.006f;
+                        float valY = sy + (settingH - settingFs) / 2.f;
+                        dl->AddText(ImGui::GetFont(), settingFs * 0.9f, ImVec2(valX, valY),
+                            C(255, 255, 255, 0.7f * g_animAlpha), valTxt.c_str());
+                    } else {
+                        std::string val = (s.selected && *s.selected < (int)s.options.size())
+                            ? s.options[*s.selected] : "?";
+                        std::string label = s.name + ":  < " + val + " >";
+                        dl->AddText(ImGui::GetFont(), settingFs, ImVec2(lx, ly),
+                            C(255, 255, 255, (sSel ? 1.f : 0.6f) * g_animAlpha), label.c_str());
+                    }
 
                     rowY += settingH + rowGap;
                 }
