@@ -37,18 +37,7 @@ static void testEntityCount() {
     void* ptr187 = reinterpret_cast<GetPtrFn>(ciVtable[187])(ci);
     void* ptr188 = reinterpret_cast<GetPtrFn>(ciVtable[188])(ci);
 
-    void* gr = ptr187;
-    if (!gr) { edu::logChat("GameRenderer: null"); return; }
-
-    char buf[256];
-    int offsets[] = {0x380, 0x3C0, 0x400, 0x440};
-    const char* names[] = {"0x380", "0x3C0", "0x400", "0x440"};
-    for (int m = 0; m < 4; m++) {
-        float* mat = reinterpret_cast<float*>((char*)gr + offsets[m]);
-        std::snprintf(buf, sizeof(buf), "%s diag: %.3f %.3f %.3f %.3f",
-            names[m], mat[0], mat[5], mat[10], mat[15]);
-        edu::logChat(buf);
-    }
+    edu::logChat("use F7 during render to check matrices");
 
     cooldown = 20;
 }

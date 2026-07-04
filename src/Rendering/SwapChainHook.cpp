@@ -207,6 +207,29 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
         escWas = escNow;
     }
 
+    {
+        static bool prevF7 = false;
+        bool f7 = (GetAsyncKeyState(VK_F7) & 0x8000) != 0;
+        if (f7 && !prevF7) {
+            auto* ci = edu::getClientInstance();
+            if (ci) {
+                void* gr = ci->getGameRenderer();
+                if (gr) {
+                    char buf[256];
+                    int offsets[] = {0x380, 0x3C0, 0x400, 0x440};
+                    const char* names[] = {"0x380", "0x3C0", "0x400", "0x440"};
+                    for (int m = 0; m < 4; m++) {
+                        float* mat = reinterpret_cast<float*>((char*)gr + offsets[m]);
+                        std::snprintf(buf, sizeof(buf), "%s diag: %.3f %.3f %.3f %.3f",
+                            names[m], mat[0], mat[5], mat[10], mat[15]);
+                        edu::logChat(buf);
+                    }
+                }
+            }
+        }
+        prevF7 = f7;
+    }
+
     gui::render();
     features::renderCoords();
     features::renderArrayList();
