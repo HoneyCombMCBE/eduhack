@@ -19,7 +19,9 @@ inline void sendChatMessage(const std::string& message) {
 }
 
 inline void logChat(const std::string& message) {
-    sendChatMessage("[heheboi] " + message);
+    static const char red[] = {'\xC2', '\xA7', 'c', '\0'};
+    static const char reset[] = {'\xC2', '\xA7', 'r', '\0'};
+    sendChatMessage(std::string(red) + "[heheboi]" + reset + " " + message);
 }
 
 } // namespace edu

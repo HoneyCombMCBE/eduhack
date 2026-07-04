@@ -2,6 +2,10 @@
 #include "Entity.h"
 #include <libhat/fixed_string.hpp>
 
+struct Vec2 {
+    float x, y;
+};
+
 struct Vec3 {
     float x, y, z;
 };
@@ -17,9 +21,24 @@ struct OnGroundFlagComponent : IEntityComponent {
     static constexpr hat::fixed_string type_name = "struct OnGroundFlagComponent";
 };
 
+struct MoveInputState {
+    uint32_t mFlagValues;
+    char _pad[12];
+};
+
 struct MoveInputComponent : IEntityComponent {
     static constexpr hat::fixed_string type_name = "struct MoveInputComponent";
-    uint32_t mInputStateFlags;
+    MoveInputState mInputState;       // 0x0
+    MoveInputState mRawInputState;    // 0x10
+    uint8_t  mHoldAutoJumpInWaterTicks; // 0x20
+    char     _pad1[3];
+    Vec2     mMove;                   // 0x24
+    Vec2     mLookDelta;              // 0x2c
+    Vec2     mInteractDir;            // 0x34
+    Vec3     mDisplacement;           // 0x3c
+    Vec3     mDisplacementDelta;      // 0x48
+    Vec3     mCameraOrientation;      // 0x54
+    uint16_t mFlagValues;             // 0x60
 };
 
 struct ActorIdentifierComponent : IEntityComponent {

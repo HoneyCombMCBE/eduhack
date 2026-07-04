@@ -23,9 +23,9 @@ static constexpr size_t kMayFlyIdx   = 10;
 
 using SetAbilitiesFn = void(__fastcall*)(void*, const LayeredAbilities*);
 
-void tickFly(void* localPlayer) {
-    if (!localPlayer || !g_flyEnabled) return;
+static bool g_wasEnabled = false;
 
+static void applyFly(void* localPlayer, bool enable) {
     auto* actor = reinterpret_cast<Actor*>(localPlayer);
     auto& ctx = actor->getEntity();
     auto* ac = ctx.tryGetComponent<AbilitiesComponent>();
@@ -34,7 +34,7 @@ void tickFly(void* localPlayer) {
     LayeredAbilities copy;
     std::memcpy(&copy, &ac->abilities, sizeof(LayeredAbilities));
 
-    bool val = true;
+    bool val = enable;
     for (int layer = 0; layer < 6; layer++) {
         size_t base = kLayerStart + layer * kLayerSize;
         std::memcpy(copy.data + base + kMayFlyIdx * kAbilitySize, &val, sizeof(bool));
@@ -44,6 +44,18 @@ void tickFly(void* localPlayer) {
     auto vtable = *reinterpret_cast<void***>(localPlayer);
     auto setAbilities = reinterpret_cast<SetAbilitiesFn>(vtable[241]);
     setAbilities(localPlayer, &copy);
+}
+
+void tickFly(void* localPlayer) {
+    if (!localPlayer) return;
+
+    if (g_flyEnabled) {
+        applyFly(localPlayer, true);
+        g_wasEnabled = true;
+    } else if (g_wasEnabled) {
+        applyFly(localPlayer, false);
+        g_wasEnabled = false;
+    }
 }
 
 } // namespace edu::features
