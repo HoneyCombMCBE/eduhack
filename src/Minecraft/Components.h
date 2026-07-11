@@ -149,3 +149,14 @@ struct EntityContext {
         this->enttRegistry.remove<T>(this->entity);
     }
 };
+
+struct AABB {
+    Vec3 min;
+    Vec3 max;
+};
+
+struct AABBShapeComponent : IEntityComponent {
+    static constexpr hat::fixed_string type_name = "struct AABBShapeComponent";
+    AABB mAABB;
+    Vec2 mBBDim;
+};

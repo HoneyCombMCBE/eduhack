@@ -2,6 +2,8 @@
 #include <cstdint>
 #include <string>
 #include "VFunc.h"
+#include "../Minecraft/Options.h"
+#include "../Minecraft/PacketSender.h"
 
 namespace edu {
 
@@ -35,6 +37,10 @@ public:
         return callVFunc<188, void*()>(this);
     }
 
+    PacketSender& getPacketSender() {
+        return callVFunc<294, PacketSender&()>(this);
+    }
+
     void* getCamera() const {
         return callVFunc<205, void*()>(this);
     }
@@ -51,6 +57,9 @@ public:
     }
     void releaseMouse() {
         callVFunc<kReleaseMouseIdx, void()>(this);
+    }
+    Options* getOptions() {
+        return callVFunc<177, Options*()>(this);
     }
 };
 

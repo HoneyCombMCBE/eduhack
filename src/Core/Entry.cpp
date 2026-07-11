@@ -10,6 +10,7 @@
 #include "../Features/ArrayList.h"
 #include "../Features/KillAura.h"
 #include "../Features/Watermark.h"
+#include "../Features/PacketLogger.h"
 #include "../Client/ConfigManager.h"
 #include "../Client/Theme.h"
 #include "../Rendering/SwapChainHook.h"
@@ -34,6 +35,7 @@ static DWORD WINAPI init(LPVOID) {
     features::g_arrayListEnabled = false;
     features::g_coordsEnabled = false;
     features::g_watermarkEnabled = true;
+    features::g_packetLoggerEnabled = false;
     features::g_killAuraRange = 20;
     features::g_killAuraDelay = 2;
     features::g_killAuraMulti = 0;
@@ -42,6 +44,7 @@ static DWORD WINAPI init(LPVOID) {
     if (!Hooks::init()) return 1;
 
     features::hooks::ClientInstanceUpdate::install();
+    features::installPacketSendHook();
 
     registerModule("Fly", "Toggle creative flight mode", "Movement",
                    &features::g_flyEnabled, []{ features::toggleFly(); });
@@ -110,6 +113,9 @@ static DWORD WINAPI init(LPVOID) {
                        {theme});
     }
 
+    registerModule("PacketLogger", "Log outgoing packets to chat", "Misc",
+                   &features::g_packetLoggerEnabled, []{ features::togglePacketLogger(); });
+
     edu::loadConfig();
 
     while (!g_disable) {
@@ -123,6 +129,7 @@ static DWORD WINAPI init(LPVOID) {
     rendering::removeSwapChainHook();
     features::hooks::LevelTick::remove();
     features::hooks::ClientInstanceUpdate::remove();
+    features::removePacketSendHook();
     edu::saveConfig();
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();
