@@ -3,6 +3,7 @@
 namespace edu::features {
 
 extern bool g_noFallEnabled;
+extern int g_noFallMode; // 0 = Sentinel, 1 = BDS
 void toggleNoFall();
 void processNoFall(void* packet);
 

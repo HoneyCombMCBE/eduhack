@@ -121,6 +121,9 @@ set(EDU_SOURCES
     src/Features/KillAura.cpp
     src/Features/Watermark.cpp
     src/Features/PacketLogger.cpp
+    src/Features/NoFall.cpp
+    src/Features/Criticals.cpp
+    src/Features/Derp.cpp
     src/Rendering/SwapChainHook.cpp
     src/GUI/ClickGUI.cpp
     src/GUI/Notifications.cpp

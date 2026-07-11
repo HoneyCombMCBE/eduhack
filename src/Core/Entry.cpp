@@ -11,6 +11,9 @@
 #include "../Features/KillAura.h"
 #include "../Features/Watermark.h"
 #include "../Features/PacketLogger.h"
+#include "../Features/NoFall.h"
+#include "../Features/Criticals.h"
+#include "../Features/Derp.h"
 #include "../Client/ConfigManager.h"
 #include "../Client/Theme.h"
 #include "../Rendering/SwapChainHook.h"
@@ -36,6 +39,11 @@ static DWORD WINAPI init(LPVOID) {
     features::g_coordsEnabled = false;
     features::g_watermarkEnabled = true;
     features::g_packetLoggerEnabled = false;
+    features::g_noFallEnabled = false;
+    features::g_noFallMode = 0;
+    features::g_criticalsEnabled = false;
+    features::g_criticalsMode = 0;
+    features::g_derpEnabled = false;
     features::g_killAuraRange = 20;
     features::g_killAuraDelay = 2;
     features::g_killAuraMulti = 0;
@@ -114,6 +122,33 @@ static DWORD WINAPI init(LPVOID) {
 
     registerModule("PacketLogger", "Log outgoing packets to chat", "Misc",
                    &features::g_packetLoggerEnabled, []{ features::togglePacketLogger(); });
+
+    {
+        edu::ModuleSetting noFallMode;
+        noFallMode.name = "Mode";
+        noFallMode.type = edu::SettingType::Dropdown;
+        noFallMode.options = {"Sentinel", "BDS"};
+        noFallMode.selected = &features::g_noFallMode;
+
+        registerModule("NoFall", "Prevent fall damage", "Player",
+                       &features::g_noFallEnabled, []{ features::toggleNoFall(); features::installPacketSendHook(); },
+                       {noFallMode});
+    }
+
+    {
+        edu::ModuleSetting critMode;
+        critMode.name = "Mode";
+        critMode.type = edu::SettingType::Dropdown;
+        critMode.options = {"Sentinel", "Safe"};
+        critMode.selected = &features::g_criticalsMode;
+
+        registerModule("Criticals", "Always deal critical hits", "Combat",
+                       &features::g_criticalsEnabled, []{ features::toggleCriticals(); features::installPacketSendHook(); },
+                       {critMode});
+    }
+
+    registerModule("Derp", "Spin head randomly server-side", "Misc",
+                   &features::g_derpEnabled, []{ features::toggleDerp(); features::installPacketSendHook(); });
 
     edu::loadConfig();
 
