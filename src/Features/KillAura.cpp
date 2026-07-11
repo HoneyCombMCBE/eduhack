@@ -2,24 +2,22 @@
 #include "../Client/ClientStore.h"
 #include "../Client/ClientInstance.h"
 #include "../Minecraft/Actor.h"
+#include "../Minecraft/GameMode.h"
 #include "../Minecraft/Components.h"
+#include "../Client/Chat.h"
+#include <sstream>
 
 #include <cmath>
 
 namespace edu::features {
 
 bool g_killAuraEnabled = false;
+int g_killAuraRange = 20;
+int g_killAuraDelay = 2;
+int g_killAuraMulti = 0;
+int g_killAuraTargets = 0; // 0 = All, 1 = Players, 2 = Mobs
 
 void toggleKillAura() { g_killAuraEnabled = !g_killAuraEnabled; }
-
-static constexpr float kRange = 6.0f;
-static constexpr int kDelay = 10;
-static constexpr size_t kGameModeOffset = 0xA80;
-static constexpr size_t kAttackIdx = 15;
-static constexpr size_t kSwingIdx = 111;
-
-using AttackFn = bool(__fastcall*)(void*, void*);
-using SwingFn = bool(__fastcall*)(void*, int);
 
 void tickKillAura(void* localPlayer) {
     if (!localPlayer || !g_killAuraEnabled) return;
@@ -35,40 +33,60 @@ void tickKillAura(void* localPlayer) {
     auto& reg = ctx.enttRegistry;
     auto view = reg.view<ActorOwnerComponent, StateVectorComponent>();
 
-    void* closestActor = nullptr;
-    float closestDist = kRange;
+    std::vector<Actor*> targets;
+    Actor* closestActorPtr = nullptr;
+    float closestDist = static_cast<float>(g_killAuraRange);
 
     for (auto ent : view) {
         auto& aoc = view.get<ActorOwnerComponent>(ent);
-        if (!aoc.mActor || aoc.mActor == localPlayer) continue;
+        if (!aoc.mActor || aoc.mActor.get() == actor) continue;
 
+        auto* targetActor = aoc.mActor.get();
+        auto& entCtx = targetActor->getEntity();
+
+        // 1. Skip dead entities
+        auto* hc = entCtx.tryGetComponent<HealthComponent>();
+        if (hc && hc->health <= 0) continue;
+
+        // 2. Filter targets: 0 = All, 1 = Players Only (has AbilitiesComponent), 2 = Mobs Only (no AbilitiesComponent)
+        bool isTargetPlayer = entCtx.hasComponent<AbilitiesComponent>();
+        if (g_killAuraTargets == 1 && !isTargetPlayer) continue;
+        if (g_killAuraTargets == 2 && isTargetPlayer) continue;
+
+        // 3. Distance check
         auto& entSv = view.get<StateVectorComponent>(ent);
-
         float dx = entSv.pos.x - sv->pos.x;
         float dy = entSv.pos.y - sv->pos.y;
         float dz = entSv.pos.z - sv->pos.z;
         float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
 
-        if (dist < 0.1f || dist >= closestDist) continue;
+        if (dist < 0.1f || dist >= static_cast<float>(g_killAuraRange)) continue;
 
-        closestDist = dist;
-        closestActor = aoc.mActor;
+        if (dist < closestDist) {
+            closestDist = dist;
+            closestActorPtr = targetActor;
+        }
+        targets.push_back(targetActor);
     }
 
-    if (!closestActor) return;
+    if (targets.empty()) return;
 
-    auto* gmPtr = *reinterpret_cast<void**>((char*)localPlayer + kGameModeOffset);
-    if (!gmPtr) return;
+    auto& gm = actor->getGameMode();
+    if (!gm) return;
 
-    auto playerVtable = *reinterpret_cast<uintptr_t**>(localPlayer);
-    auto swing = reinterpret_cast<SwingFn>(playerVtable[kSwingIdx]);
-    swing(localPlayer, 0);
+    actor->swing();
+    
+    if (g_killAuraMulti == 1) {
+        for (auto* target : targets) {
+            gm->attack(*target);
+        }
+    } else {
+        if (closestActorPtr) {
+            gm->attack(*closestActorPtr);
+        }
+    }
 
-    auto gmVtable = *reinterpret_cast<uintptr_t**>(gmPtr);
-    auto attack = reinterpret_cast<AttackFn>(gmVtable[kAttackIdx]);
-    attack(gmPtr, closestActor);
-
-    delay = kDelay;
+    delay = g_killAuraDelay;
 }
 
 } // namespace edu::features

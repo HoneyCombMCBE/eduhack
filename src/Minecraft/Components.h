@@ -41,10 +41,12 @@ struct MoveInputComponent : IEntityComponent {
     uint16_t mFlagValues;             // 0x60
 };
 
+class Actor;
+
 class ActorOwnerComponent : public IEntityComponent {
 public:
     static constexpr hat::fixed_string type_name = "class ActorOwnerComponent";
-    void* mActor;
+    std::unique_ptr<Actor> mActor;
 };
 
 struct ActorIdentifierComponent : IEntityComponent {

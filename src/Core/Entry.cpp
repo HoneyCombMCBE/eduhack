@@ -9,6 +9,7 @@
 #include "../Features/Sprint.h"
 #include "../Features/ArrayList.h"
 #include "../Features/KillAura.h"
+#include "../Features/ClickTp.h"
 #include "../Rendering/SwapChainHook.h"
 
 #include <windows.h>
@@ -28,6 +29,11 @@ static DWORD WINAPI init(LPVOID) {
     features::g_killAuraEnabled = false;
     features::g_arrayListEnabled = false;
     features::g_coordsEnabled = false;
+    features::g_clickTpEnabled = false;
+    features::g_killAuraRange = 20;
+    features::g_killAuraDelay = 2;
+    features::g_killAuraMulti = 0;
+    features::g_killAuraTargets = 0;
 
     if (!Hooks::init()) return 1;
 
@@ -39,8 +45,42 @@ static DWORD WINAPI init(LPVOID) {
     registerModule("Sprint", "Always sprint when moving", "Movement",
                    &features::g_sprintEnabled, []{ features::toggleSprint(); });
 
-    registerModule("KillAura", "Attack nearby entities", "Combat",
-                   &features::g_killAuraEnabled, []{ features::toggleKillAura(); });
+    registerModule("ClickTp", "Teleport to looked block", "Movement",
+                   &features::g_clickTpEnabled, []{ features::toggleClickTp(); });
+
+    {
+        edu::ModuleSetting range;
+        range.name = "Range";
+        range.type = edu::SettingType::Slider;
+        range.selected = &features::g_killAuraRange;
+        range.min = 1;
+        range.max = 50;
+        range.step = 1;
+
+        edu::ModuleSetting delay;
+        delay.name = "Delay";
+        delay.type = edu::SettingType::Slider;
+        delay.selected = &features::g_killAuraDelay;
+        delay.min = 0;
+        delay.max = 20;
+        delay.step = 1;
+
+        edu::ModuleSetting multi;
+        multi.name = "MultiAura";
+        multi.type = edu::SettingType::Dropdown;
+        multi.options = {"Single", "Multi"};
+        multi.selected = &features::g_killAuraMulti;
+
+        edu::ModuleSetting targets;
+        targets.name = "Targets";
+        targets.type = edu::SettingType::Dropdown;
+        targets.options = {"All", "Players", "Mobs"};
+        targets.selected = &features::g_killAuraTargets;
+
+        registerModule("KillAura", "Attack nearby entities", "Combat",
+                       &features::g_killAuraEnabled, []{ features::toggleKillAura(); },
+                       {range, delay, multi, targets});
+    }
 
     registerModule("ArrayList", "Show enabled modules list", "Render",
                    &features::g_arrayListEnabled, []{ features::toggleArrayList(); });

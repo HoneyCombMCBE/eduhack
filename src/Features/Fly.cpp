@@ -21,13 +21,10 @@ static constexpr size_t kAbilitySize = 12;
 static constexpr size_t kFlyingIdx   = 9;
 static constexpr size_t kMayFlyIdx   = 10;
 
-using SetAbilitiesFn = void(__fastcall*)(void*, const LayeredAbilities*);
-
 static bool g_wasEnabled = false;
 static bool g_hadMayFly = false;
 
-static void applyFly(void* localPlayer, bool enable) {
-    auto* actor = reinterpret_cast<Actor*>(localPlayer);
+static void applyFly(Actor* actor, bool enable) {
     auto& ctx = actor->getEntity();
     auto* ac = ctx.tryGetComponent<AbilitiesComponent>();
     if (!ac) return;
@@ -42,26 +39,24 @@ static void applyFly(void* localPlayer, bool enable) {
         std::memcpy(copy.data + base + kFlyingIdx * kAbilitySize, &val, sizeof(bool));
     }
 
-    auto vtable = *reinterpret_cast<void***>(localPlayer);
-    auto setAbilities = reinterpret_cast<SetAbilitiesFn>(vtable[241]);
-    setAbilities(localPlayer, &copy);
+    actor->setAbilities(copy);
 }
 
 void tickFly(void* localPlayer) {
     if (!localPlayer) return;
+    auto* actor = reinterpret_cast<Actor*>(localPlayer);
 
     if (g_flyEnabled) {
         if (!g_wasEnabled) {
-            auto* actor = reinterpret_cast<Actor*>(localPlayer);
             auto& ctx = actor->getEntity();
             auto* mac = ctx.tryGetComponent<MovementAbilitiesComponent>();
             g_hadMayFly = mac && mac->mayFly;
         }
-        applyFly(localPlayer, true);
+        applyFly(actor, true);
         g_wasEnabled = true;
     } else if (g_wasEnabled) {
         if (!g_hadMayFly)
-            applyFly(localPlayer, false);
+            applyFly(actor, false);
         g_wasEnabled = false;
     }
 }

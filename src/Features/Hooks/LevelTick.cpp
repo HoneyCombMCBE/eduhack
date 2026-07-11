@@ -6,6 +6,7 @@
 #include "../Fly.h"
 #include "../Sprint.h"
 #include "../KillAura.h"
+#include "../ClickTp.h"
 
 #include <MinHook.h>
 
@@ -23,6 +24,7 @@ static void __fastcall hk_tickWorld(void* player, const void* tick) {
     edu::features::tickFly(player);
     edu::features::tickSprint(player);
     edu::features::tickKillAura(player);
+    edu::features::tickClickTp(player);
 }
 
 bool install() {
