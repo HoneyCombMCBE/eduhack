@@ -1,6 +1,7 @@
 #include "ArrayList.h"
 #include "../Client/ModuleManager.h"
 #include "../Client/ClientStore.h"
+#include "../Client/Theme.h"
 
 #include <imgui.h>
 #include <algorithm>
@@ -126,18 +127,20 @@ void renderArrayList() {
         if (alpha < 0.01f) { slot0++; continue; }
 
         float rx = sW - totalTextW - padRight + e.xSlide * (totalTextW + padRight + 30.f);
-        dl->AddRectFilledMultiColor(
+        dl->AddRectFilled(
             ImVec2(rx - fontSize * 0.15f, e.y), ImVec2(sW, e.y + rowH),
-            C(200, 120, 40, bgAlpha * alpha),
-            C(200, 50, 60, bgAlpha * alpha),
-            C(180, 40, 50, bgAlpha * alpha),
-            C(220, 140, 50, bgAlpha * alpha));
+            C(20, 20, 20, bgAlpha * alpha));
+
+        // Draw vertical accent bar at the right screen edge using theme color
+        ImColor themeCol = edu::getThemeColor(e.y * 2.f);
+        dl->AddRectFilled(
+            ImVec2(sW - accentW, e.y), ImVec2(sW, e.y + rowH),
+            IM_COL32(themeCol.Value.x * 255.f, themeCol.Value.y * 255.f, themeCol.Value.z * 255.f, alpha * 255.f));
 
         slot0++;
     }
 
     int slot = 0;
-    int totalVisible = (int)visible.size();
     for (auto& name : visible) {
         auto& e = g_entries[name];
         float targetY = padTop + slot * (rowH + rowGap);
@@ -164,11 +167,9 @@ void renderArrayList() {
         int len = (int)name.size();
         char ch[2] = {0, 0};
         for (int i = 0; i < len; i++) {
-            float t = len > 1 ? (float)i / (len - 1) : 0.f;
-            int r = (int)(255 - t * 35);
-            int g = (int)(130 + t * 40);
-            int b = (int)(80 + t * 25);
-            ImU32 col = C(r, g, b, alpha);
+            float indexFactor = e.y * 2.f + (static_cast<float>(i) / (len > 1 ? (len - 1) : 1)) * 100.f;
+            ImColor themeCol = edu::getThemeColor(indexFactor);
+            ImU32 col = IM_COL32(themeCol.Value.x * 255.f, themeCol.Value.y * 255.f, themeCol.Value.z * 255.f, alpha * 255.f);
 
             ch[0] = name[i];
             dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx + bold, ty), col, ch);

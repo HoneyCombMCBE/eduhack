@@ -3,6 +3,7 @@
 #include "../Client/ModuleManager.h"
 #include "../Client/Chat.h"
 #include "../Client/ClientStore.h"
+#include "../Client/ConfigManager.h"
 
 #include <imgui.h>
 #include <algorithm>
@@ -127,12 +128,12 @@ void render() {
                 if (s.type == edu::SettingType::Dropdown) {
                     int optCount = (int)s.options.size();
                     if (optCount > 0 && s.selected) {
-                        if (keyPressed(VK_LEFT))  *s.selected = (*s.selected - 1 + optCount) % optCount;
-                        if (keyPressed(VK_RIGHT)) *s.selected = (*s.selected + 1) % optCount;
+                        if (keyPressed(VK_LEFT))  { *s.selected = (*s.selected - 1 + optCount) % optCount; edu::saveConfig(); }
+                        if (keyPressed(VK_RIGHT)) { *s.selected = (*s.selected + 1) % optCount; edu::saveConfig(); }
                     }
                 } else if (s.type == edu::SettingType::Slider && s.selected) {
-                    if (keyPressed(VK_LEFT))  { *s.selected -= s.step; if (*s.selected < s.min) *s.selected = s.min; }
-                    if (keyPressed(VK_RIGHT)) { *s.selected += s.step; if (*s.selected > s.max) *s.selected = s.max; }
+                    if (keyPressed(VK_LEFT))  { *s.selected -= s.step; if (*s.selected < s.min) *s.selected = s.min; edu::saveConfig(); }
+                    if (keyPressed(VK_RIGHT)) { *s.selected += s.step; if (*s.selected > s.max) *s.selected = s.max; edu::saveConfig(); }
                 }
             }
         } else {
@@ -151,6 +152,7 @@ void render() {
                         bool ne = m->enabled ? *m->enabled : false;
                         notifications::notify(m->name + (ne ? " enabled" : " disabled"));
                         edu::logChat(m->name + (ne ? " enabled" : " disabled"));
+                        edu::saveConfig();
                     }
                 } else if (g_selCat == 0) {
                     g_open = false;

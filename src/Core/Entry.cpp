@@ -9,11 +9,16 @@
 #include "../Features/Sprint.h"
 #include "../Features/ArrayList.h"
 #include "../Features/KillAura.h"
+#include "../Features/Watermark.h"
+#include "../Client/ConfigManager.h"
+#include "../Client/Theme.h"
 #include "../Rendering/SwapChainHook.h"
 
 #include <windows.h>
 
 using namespace edu;
+
+int edu::g_activeTheme = 1;
 
 static HMODULE g_hModule = nullptr;
 volatile bool g_disable = false;
@@ -28,6 +33,7 @@ static DWORD WINAPI init(LPVOID) {
     features::g_killAuraEnabled = false;
     features::g_arrayListEnabled = false;
     features::g_coordsEnabled = false;
+    features::g_watermarkEnabled = true;
     features::g_killAuraRange = 20;
     features::g_killAuraDelay = 2;
     features::g_killAuraMulti = 0;
@@ -92,6 +98,20 @@ static DWORD WINAPI init(LPVOID) {
                        {pos});
     }
 
+    {
+        edu::ModuleSetting theme;
+        theme.name = "Theme";
+        theme.type = edu::SettingType::Dropdown;
+        theme.options = {"Rainbow", "Sunset", "Orange"};
+        theme.selected = &edu::g_activeTheme;
+
+        registerModule("Watermark", "Show watermark on screen", "Render",
+                       &features::g_watermarkEnabled, []{ features::toggleWatermark(); },
+                       {theme});
+    }
+
+    edu::loadConfig();
+
     while (!g_disable) {
         if (GetAsyncKeyState(VK_END) & 1) {
             g_disable = true;
@@ -103,6 +123,7 @@ static DWORD WINAPI init(LPVOID) {
     rendering::removeSwapChainHook();
     features::hooks::LevelTick::remove();
     features::hooks::ClientInstanceUpdate::remove();
+    edu::saveConfig();
     MH_DisableHook(MH_ALL_HOOKS);
     MH_Uninitialize();
     edu::resetClientInstance();

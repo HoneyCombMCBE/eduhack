@@ -3,6 +3,7 @@
 #include "../GUI/Notifications.h"
 #include "../Features/CoordsDisplay.h"
 #include "../Features/ArrayList.h"
+#include "../Features/Watermark.h"
 #include "../Client/ClientStore.h"
 #include "../Client/Chat.h"
 #include "../Input/KeyInput.h"
@@ -212,6 +213,7 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
     gui::render();
     features::renderCoords();
     features::renderArrayList();
+    features::renderWatermark();
     gui::notifications::render();
 
     ImGui::Render();
