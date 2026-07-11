@@ -69,8 +69,7 @@ void renderArrayList() {
     std::sort(active.begin(), active.end(), [&](const std::string& a, const std::string& b) {
         float wa = ImGui::CalcTextSize(a.c_str()).x;
         float wb = ImGui::CalcTextSize(b.c_str()).x;
-        if (wa != wb) return wa > wb;
-        return a < b;
+        return wa > wb;
     });
 
     for (auto& name : active) {
@@ -102,8 +101,7 @@ void renderArrayList() {
     std::sort(visible.begin(), visible.end(), [&](const std::string& a, const std::string& b) {
         float wa = ImGui::CalcTextSize(a.c_str()).x;
         float wb = ImGui::CalcTextSize(b.c_str()).x;
-        if (wa != wb) return wa > wb;
-        return a < b;
+        return wa > wb;
     });
 
     float maxTextW = 0.f;
@@ -120,8 +118,7 @@ void renderArrayList() {
         fl(e.y, targetY, 0.15f * ff);
 
         float textW = ImGui::CalcTextSize(name.c_str()).x * sc;
-        float bold = fontSize * 0.03f;
-        float totalTextW = textW + bold * (int)name.size();
+        float totalTextW = textW;
 
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot0++; continue; }
@@ -153,8 +150,7 @@ void renderArrayList() {
         fl(e.y, targetY, 0.15f * ff);
 
         float textW = ImGui::CalcTextSize(name.c_str()).x * sc;
-        float bold = fontSize * 0.03f;
-        float totalTextW = textW + bold * (int)name.size();
+        float totalTextW = textW;
 
         float slideOff = e.xSlide * (totalTextW + padRight + 30.f);
         float tx = sW - totalTextW - padRight + slideOff;
@@ -171,10 +167,24 @@ void renderArrayList() {
             ImColor themeCol = edu::getThemeColor(indexFactor);
             ImU32 col = IM_COL32(themeCol.Value.x * 255.f, themeCol.Value.y * 255.f, themeCol.Value.z * 255.f, alpha * 255.f);
 
+            // 1:1 Solstice shadow color formula:
+            ImU32 shadowCol = IM_COL32(
+                static_cast<int>(themeCol.Value.x * 0.03f * 255.f),
+                static_cast<int>(themeCol.Value.y * 0.03f * 255.f),
+                static_cast<int>(themeCol.Value.z * 0.03f * 255.f),
+                static_cast<int>(alpha * 0.9f * 255.f)
+            );
+
             ch[0] = name[i];
-            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx + bold, ty), col, ch);
+            float charW = ImGui::CalcTextSize(ch).x * sc;
+
+            // Draw shadow: offset by 1.f in X and Y (Solstice standard)
+            dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx + 1.f, ty + 1.f), shadowCol, ch);
+            
+            // Draw character
             dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx, ty), col, ch);
-            cx += ImGui::CalcTextSize(ch).x * sc + bold;
+            
+            cx += charW;
         }
 
         slot++;
