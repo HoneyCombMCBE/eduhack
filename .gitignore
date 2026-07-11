@@ -34,3 +34,4 @@ Thumbs.db
 # Reference files (downloaded headers)
 build/Player_ref.h
 build/LocalPlayer_ref.h
+reference/

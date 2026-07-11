@@ -9,7 +9,6 @@
 #include "../Features/Sprint.h"
 #include "../Features/ArrayList.h"
 #include "../Features/KillAura.h"
-#include "../Features/ClickTp.h"
 #include "../Rendering/SwapChainHook.h"
 
 #include <windows.h>
@@ -29,7 +28,6 @@ static DWORD WINAPI init(LPVOID) {
     features::g_killAuraEnabled = false;
     features::g_arrayListEnabled = false;
     features::g_coordsEnabled = false;
-    features::g_clickTpEnabled = false;
     features::g_killAuraRange = 20;
     features::g_killAuraDelay = 2;
     features::g_killAuraMulti = 0;
@@ -44,9 +42,6 @@ static DWORD WINAPI init(LPVOID) {
 
     registerModule("Sprint", "Always sprint when moving", "Movement",
                    &features::g_sprintEnabled, []{ features::toggleSprint(); });
-
-    registerModule("ClickTp", "Teleport to looked block", "Movement",
-                   &features::g_clickTpEnabled, []{ features::toggleClickTp(); });
 
     {
         edu::ModuleSetting range;
