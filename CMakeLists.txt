@@ -120,6 +120,7 @@ set(EDU_SOURCES
     src/Features/ArrayList.cpp
     src/Features/KillAura.cpp
     src/Features/Watermark.cpp
+    src/Features/PacketLogger.cpp
     src/Rendering/SwapChainHook.cpp
     src/GUI/ClickGUI.cpp
     src/GUI/Notifications.cpp
