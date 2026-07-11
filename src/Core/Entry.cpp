@@ -44,7 +44,6 @@ static DWORD WINAPI init(LPVOID) {
     if (!Hooks::init()) return 1;
 
     features::hooks::ClientInstanceUpdate::install();
-    features::installPacketSendHook();
 
     registerModule("Fly", "Toggle creative flight mode", "Movement",
                    &features::g_flyEnabled, []{ features::toggleFly(); });
