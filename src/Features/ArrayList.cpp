@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <unordered_map>
 #include <string>
 #include <vector>
 
@@ -60,16 +61,18 @@ void renderArrayList() {
     float accentW = sH * 0.003f;
 
     std::vector<std::string> active;
+    std::unordered_map<std::string, float> widthCache;
+
     for (auto& m : edu::getModules()) {
         if (m.name == "ArrayList") continue;
-        if (m.enabled && *m.enabled)
+        if (m.enabled && *m.enabled) {
             active.push_back(m.name);
+            widthCache[m.name] = ImGui::CalcTextSize(m.name.c_str()).x;
+        }
     }
 
     std::sort(active.begin(), active.end(), [&](const std::string& a, const std::string& b) {
-        float wa = ImGui::CalcTextSize(a.c_str()).x;
-        float wb = ImGui::CalcTextSize(b.c_str()).x;
-        return wa > wb;
+        return widthCache[a] > widthCache[b];
     });
 
     for (auto& name : active) {
@@ -81,6 +84,9 @@ void renderArrayList() {
         bool isActive = std::find(active.begin(), active.end(), name) != active.end();
         float targetX = isActive ? 0.f : 1.f;
         fl(e.xSlide, targetX, 0.12f * ff);
+        if (widthCache.find(name) == widthCache.end()) {
+            widthCache[name] = ImGui::CalcTextSize(name.c_str()).x;
+        }
     }
 
     for (auto it = g_entries.begin(); it != g_entries.end(); ) {
@@ -99,14 +105,12 @@ void renderArrayList() {
             visible.push_back(name);
     }
     std::sort(visible.begin(), visible.end(), [&](const std::string& a, const std::string& b) {
-        float wa = ImGui::CalcTextSize(a.c_str()).x;
-        float wb = ImGui::CalcTextSize(b.c_str()).x;
-        return wa > wb;
+        return widthCache[a] > widthCache[b];
     });
 
     float maxTextW = 0.f;
     for (auto& name : visible) {
-        float w = ImGui::CalcTextSize(name.c_str()).x * sc;
+        float w = widthCache[name] * sc;
         if (w > maxTextW) maxTextW = w;
     }
 
@@ -117,7 +121,7 @@ void renderArrayList() {
         if (!e.initialized) { e.y = targetY; e.initialized = true; }
         fl(e.y, targetY, 0.15f * ff);
 
-        float textW = ImGui::CalcTextSize(name.c_str()).x * sc;
+        float textW = widthCache[name] * sc;
         float totalTextW = textW;
 
         float alpha = 1.f - e.xSlide;
@@ -149,12 +153,12 @@ void renderArrayList() {
 
         fl(e.y, targetY, 0.15f * ff);
 
-        float textW = ImGui::CalcTextSize(name.c_str()).x * sc;
+        float textW = widthCache[name] * sc;
         float totalTextW = textW;
 
         float slideOff = e.xSlide * (totalTextW + padRight + 30.f);
         float tx = sW - totalTextW - padRight + slideOff;
-        float ty = e.y + (rowH - ImGui::CalcTextSize(name.c_str()).y * sc) / 2.f;
+        float ty = e.y + (rowH - fontSize) / 2.f;
 
         float alpha = 1.f - e.xSlide;
         if (alpha < 0.01f) { slot++; continue; }
@@ -180,10 +184,10 @@ void renderArrayList() {
 
             // Draw shadow: offset by 1.f in X and Y (Solstice standard)
             dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx + 1.f, ty + 1.f), shadowCol, ch);
-            
+
             // Draw character
             dl->AddText(ImGui::GetFont(), fontSize, ImVec2(cx, ty), col, ch);
-            
+
             cx += charW;
         }
 

@@ -38,12 +38,19 @@ inline void registerModule(const std::string& name, const std::string& desc,
     getModules().push_back({name, desc, category, enabled, std::move(toggle), std::move(settings)});
 }
 
-inline std::vector<std::string> getCategories() {
-    std::vector<std::string> cats;
-    for (auto& m : getModules()) {
-        bool found = false;
-        for (auto& c : cats) if (c == m.category) { found = true; break; }
-        if (!found) cats.push_back(m.category);
+inline std::vector<std::string>& getCategoriesList() {
+    static std::vector<std::string> cats;
+    return cats;
+}
+
+inline const std::vector<std::string>& getCategories() {
+    auto& cats = getCategoriesList();
+    if (cats.empty()) {
+        for (auto& m : getModules()) {
+            bool found = false;
+            for (auto& c : cats) if (c == m.category) { found = true; break; }
+            if (!found) cats.push_back(m.category);
+        }
     }
     return cats;
 }

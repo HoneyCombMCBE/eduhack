@@ -35,7 +35,8 @@ void tickKillAura(void* localPlayer) {
 
     std::vector<Actor*> targets;
     Actor* closestActorPtr = nullptr;
-    float closestDist = static_cast<float>(g_killAuraRange);
+    float rangeLimit = static_cast<float>(g_killAuraRange);
+    float closestDistSq = rangeLimit * rangeLimit;
 
     for (auto ent : view) {
         auto& aoc = view.get<ActorOwnerComponent>(ent);
@@ -58,12 +59,12 @@ void tickKillAura(void* localPlayer) {
         float dx = entSv.pos.x - sv->pos.x;
         float dy = entSv.pos.y - sv->pos.y;
         float dz = entSv.pos.z - sv->pos.z;
-        float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+        float distSq = dx*dx + dy*dy + dz*dz;
 
-        if (dist < 0.1f || dist >= static_cast<float>(g_killAuraRange)) continue;
+        if (distSq < 0.01f || distSq >= rangeLimit * rangeLimit) continue;
 
-        if (dist < closestDist) {
-            closestDist = dist;
+        if (distSq < closestDistSq) {
+            closestDistSq = distSq;
             closestActorPtr = targetActor;
         }
         targets.push_back(targetActor);

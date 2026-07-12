@@ -15,8 +15,8 @@ struct Notification {
     std::string text;
     bool finished = false;
     bool arrived = false;
-    float width = 0;
-    bool firstTime = true;
+    float textWidth = 0.f;
+    float textHeight = 0.f;
     std::chrono::steady_clock::time_point time = std::chrono::steady_clock::now();
 };
 
@@ -79,6 +79,8 @@ void render() {
             // flarial: measure text with FlarialTextWithFont at transparent color
             // width = measured text width + RelativeConstraint(0.0345, "height", true)
             ImVec2 ts = ImGui::CalcTextSize(n.text.c_str());
+            n.textWidth = ts.x;
+            n.textHeight = ts.y;
             float scale = imguiFontSize / ImGui::GetFontSize();
             float textW = ts.x * scale;
             n.width = textW + sH * 0.0345f;
@@ -97,10 +99,9 @@ void render() {
 
                 // text centered in rect
                 {
-                    ImVec2 ts = ImGui::CalcTextSize(n.text.c_str());
                     float sc = imguiFontSize / ImGui::GetFontSize();
-                    float tx = n.currentPos + (n.width - ts.x * sc) / 2.f;
-                    float ty = n.currentPosY + posyModif + (height - ts.y * sc) / 2.f;
+                    float tx = n.currentPos + (n.width - n.textWidth * sc) / 2.f;
+                    float ty = n.currentPosY + posyModif + (height - n.textHeight * sc) / 2.f;
                     dl->AddText(ImGui::GetFont(), imguiFontSize, ImVec2(tx, ty),
                         col(255, 255, 255), n.text.c_str());
                 }
@@ -126,10 +127,9 @@ void render() {
                     accentCol, roundX);
 
                 {
-                    ImVec2 ts = ImGui::CalcTextSize(n.text.c_str());
                     float sc = imguiFontSize / ImGui::GetFontSize();
-                    float tx = n.currentPos + (n.width - ts.x * sc) / 2.f;
-                    float ty = n.currentPosY + posyModif + (height - ts.y * sc) / 2.f;
+                    float tx = n.currentPos + (n.width - n.textWidth * sc) / 2.f;
+                    float ty = n.currentPosY + posyModif + (height - n.textHeight * sc) / 2.f;
                     dl->AddText(ImGui::GetFont(), imguiFontSize, ImVec2(tx, ty),
                         col(255, 255, 255), n.text.c_str());
                 }

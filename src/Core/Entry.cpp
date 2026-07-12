@@ -41,6 +41,7 @@ static DWORD WINAPI init(LPVOID) {
     g_disable = false;
 
     edu::getModules().clear();
+    edu::getCategoriesList().clear();
 
     features::g_flyEnabled = false;
     features::g_flyMode = 0;

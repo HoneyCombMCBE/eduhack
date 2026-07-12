@@ -44,7 +44,7 @@ void processCriticals(void* rawPacket, void* localPlayer) {
     auto view = reg.view<ActorOwnerComponent, StateVectorComponent>();
 
     std::vector<Actor*> targets;
-    float closestDist = static_cast<float>(g_criticalsRange);
+    float closestDistSq = static_cast<float>(g_criticalsRange * g_criticalsRange);
 
     for (auto ent : view) {
         auto& aoc = view.get<ActorOwnerComponent>(ent);
@@ -60,10 +60,10 @@ void processCriticals(void* rawPacket, void* localPlayer) {
         float dx = entSv.pos.x - sv->pos.x;
         float dy = entSv.pos.y - sv->pos.y;
         float dz = entSv.pos.z - sv->pos.z;
-        float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+        float distSq = dx*dx + dy*dy + dz*dz;
 
-        if (dist < closestDist) {
-            nearEntityDist = dist;
+        if (distSq < closestDistSq) {
+            nearEntityDist = std::sqrt(distSq);
             targets.push_back(targetActor);
         }
     }

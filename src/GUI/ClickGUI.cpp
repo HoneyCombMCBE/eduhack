@@ -111,15 +111,17 @@ void render() {
 
     if (g_selCat >= catCount) g_selCat = catCount - 1;
 
-    auto getModsForCat = [&](int ci) -> std::vector<ModuleInfo*> {
-        std::vector<ModuleInfo*> out;
-        for (auto& m : mods)
-            if (m.category == cats[ci]) out.push_back(&m);
-        return out;
-    };
+    std::vector<std::vector<ModuleInfo*>> modsByCategory(catCount);
+    for (int ci = 0; ci < catCount; ci++) {
+        for (auto& m : mods) {
+            if (m.category == cats[ci]) {
+                modsByCategory[ci].push_back(&m);
+            }
+        }
+    }
 
     if (g_open) {
-        auto curMods = getModsForCat(g_selCat);
+        auto& curMods = modsByCategory[g_selCat];
         int modCount = (int)curMods.size();
 
         if (g_expanded) {
@@ -191,7 +193,7 @@ void render() {
 
     auto countSettingRows = [&](int ci, int modIdx) -> int {
         if (!g_expanded || ci != g_selCat || modIdx != g_selMod) return 0;
-        auto catMods = getModsForCat(ci);
+        auto& catMods = modsByCategory[ci];
         if (modIdx >= (int)catMods.size()) return 0;
         return (int)catMods[modIdx]->settings.size();
     };
@@ -204,7 +206,7 @@ void render() {
         auto& catName = cats[ci];
         bool isSel = (ci == g_selCat);
 
-        auto catMods = getModsForCat(ci);
+        auto& catMods = modsByCategory[ci];
         int modCount = (int)catMods.size();
 
         int totalSettings = 0;
