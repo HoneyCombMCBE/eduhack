@@ -41,6 +41,10 @@ void notify(const std::string& message) {
     g_notifications.push_back(n);
 }
 
+void clear() {
+    g_notifications.clear();
+}
+
 void render() {
     auto& io = ImGui::GetIO();
     float sH = io.DisplaySize.y;

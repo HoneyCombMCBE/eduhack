@@ -21,6 +21,7 @@ static int g_selCat = 0;
 static int g_selMod = 0;
 static bool g_expanded = false;
 static int g_selSetting = 0;
+static float g_animAlpha = 0.f;
 
 void toggle() {
     auto* ci = edu::getClientInstance();
@@ -39,6 +40,15 @@ void toggle() {
     }
 }
 bool isOpen() { return g_open; }
+
+void reset() {
+    g_open = false;
+    g_selCat = 0;
+    g_selMod = 0;
+    g_expanded = false;
+    g_selSetting = 0;
+    g_animAlpha = 0.f;
+}
 
 static void fl(float& a, float b, float t) {
     a = std::ceilf((a + (b - a) * t) * 1000.f) / 1000.f;
@@ -63,8 +73,6 @@ static void ShadowRect(ImDrawList* dl, float x, float y, float w, float h,
         dl->AddRectFilled(ImVec2(x-e,y-e), ImVec2(x+w+e,y+h+e), C(0,0,0,a2 * alpha), rounding);
     }
 }
-
-static float g_animAlpha = 0.f;
 
 static bool keyPressed(int vk) {
     static bool prev[256] = {};

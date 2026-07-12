@@ -4,6 +4,7 @@
 #include "VFunc.h"
 #include "../Minecraft/Options.h"
 #include "../Minecraft/PacketSender.h"
+#include "../Minecraft/Level.h"
 
 namespace edu {
 
@@ -17,8 +18,18 @@ public:
         return callVFunc<172, bool()>(this);
     }
 
-    void* getLevel() {
+    void* getLevelRaw() {
         return callVFunc<171, void*()>(this);
+    }
+
+    Level* getLevel() {
+        return reinterpret_cast<Level*>(getLevelRaw());
+    }
+
+    HitResult* getHitResult() {
+        auto* level = getLevel();
+        if (!level) return nullptr;
+        return &level->getHitResult();
     }
 
     std::string getScreenName() const {
@@ -60,6 +71,10 @@ public:
     }
     Options* getOptions() {
         return callVFunc<177, Options*()>(this);
+    }
+
+    void* getProfanityContext() {
+        return callVFunc<362, void*()>(this);
     }
 };
 

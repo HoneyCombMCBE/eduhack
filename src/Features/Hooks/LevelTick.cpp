@@ -7,6 +7,11 @@
 #include "../Sprint.h"
 #include "../KillAura.h"
 
+#include "../NoSlow.h"
+#include "../Blink.h"
+#include "../Velocity.h"
+#include "../InstaBuild.h"
+
 #include <MinHook.h>
 
 namespace edu::features::hooks::LevelTick {
@@ -23,6 +28,11 @@ static void __fastcall hk_tickWorld(void* player, const void* tick) {
     edu::features::tickFly(player);
     edu::features::tickSprint(player);
     edu::features::tickKillAura(player);
+
+    edu::features::tickNoSlow(player);
+    edu::features::tickBlink();
+    edu::features::tickVelocity(player);
+    edu::features::tickInstaBuild(player);
 }
 
 bool install() {

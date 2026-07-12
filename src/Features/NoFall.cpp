@@ -1,11 +1,12 @@
 #include "NoFall.h"
 #include "../Minecraft/PlayerAuthInputPacket.h"
+#include "../Minecraft/MovePlayerPacket.h"
 #include "../Minecraft/Packet.h"
 
 namespace edu::features {
 
 bool g_noFallEnabled = false;
-int g_noFallMode = 0; // 0 = Sentinel, 1 = BDS
+int g_noFallMode = 0; // 0 = Sentinel, 1 = BDS, 2 = Horion
 
 void toggleNoFall() {
     g_noFallEnabled = !g_noFallEnabled;
@@ -17,7 +18,18 @@ void processNoFall(void* rawPacket) {
     if (!g_noFallEnabled) return;
 
     auto* packet = reinterpret_cast<Packet*>(rawPacket);
-    if (static_cast<uint32_t>(packet->getId()) != PACKET_ID_PLAYER_AUTH_INPUT) return;
+    uint32_t id = static_cast<uint32_t>(packet->getId());
+
+    if (g_noFallMode == 2) {
+        // Horion: spoof onGround in MovePlayerPacket
+        if (id == PACKET_ID_MOVE_PLAYER) {
+            auto* mpp = reinterpret_cast<MovePlayerPacket*>(rawPacket);
+            mpp->mOnGround() = true;
+        }
+        return;
+    }
+
+    if (id != PACKET_ID_PLAYER_AUTH_INPUT) return;
 
     auto* paip = reinterpret_cast<PlayerAuthInputPacket*>(rawPacket);
 

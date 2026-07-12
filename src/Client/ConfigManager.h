@@ -3,12 +3,24 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <Windows.h>
 #include "ModuleManager.h"
 
 namespace edu {
 
+inline std::string getConfigDir() {
+    char* appdata = nullptr;
+    size_t len = 0;
+    _dupenv_s(&appdata, &len, "LOCALAPPDATA");
+    if (!appdata) return "";
+    std::string dir = std::string(appdata) + "\\Packages\\Microsoft.MinecraftEducationEdition_8wekyb3d8bbwe\\RoamingState\\heheboi\\";
+    free(appdata);
+    CreateDirectoryA(dir.c_str(), nullptr);
+    return dir;
+}
+
 inline void saveConfig() {
-    std::ofstream file("heheboi_config.txt");
+    std::ofstream file(getConfigDir() + "heheboi_config.txt");
     if (!file.is_open()) return;
 
     for (auto& m : getModules()) {
@@ -24,7 +36,7 @@ inline void saveConfig() {
 }
 
 inline void loadConfig() {
-    std::ifstream file("heheboi_config.txt");
+    std::ifstream file(getConfigDir() + "heheboi_config.txt");
     if (!file.is_open()) return;
 
     std::unordered_map<std::string, int> values;

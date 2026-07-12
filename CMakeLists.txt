@@ -124,6 +124,15 @@ set(EDU_SOURCES
     src/Features/NoFall.cpp
     src/Features/Criticals.cpp
     src/Features/Derp.cpp
+
+    src/Features/NoSlow.cpp
+    src/Features/AntiHunger.cpp
+    src/Features/Blink.cpp
+    src/Features/AutoClicker.cpp
+    src/Features/Crasher.cpp
+    src/Features/Velocity.cpp
+    src/Features/Freecam.cpp
+    src/Features/InstaBuild.cpp
     src/Rendering/SwapChainHook.cpp
     src/GUI/ClickGUI.cpp
     src/GUI/Notifications.cpp

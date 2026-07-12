@@ -78,11 +78,11 @@ void tickKillAura(void* localPlayer) {
     
     if (g_killAuraMulti == 1) {
         for (auto* target : targets) {
-            gm->attack(*target);
+            gm->attack(target);
         }
     } else {
         if (closestActorPtr) {
-            gm->attack(*closestActorPtr);
+            gm->attack(closestActorPtr);
         }
     }
 

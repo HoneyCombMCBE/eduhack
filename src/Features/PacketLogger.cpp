@@ -2,6 +2,12 @@
 #include "NoFall.h"
 #include "Criticals.h"
 #include "Derp.h"
+
+#include "AntiHunger.h"
+#include "Blink.h"
+#include "Crasher.h"
+#include "Freecam.h"
+#include "Fly.h"
 #include "../Client/ClientInstance.h"
 #include "../Client/ClientStore.h"
 #include "../Minecraft/PacketSender.h"
@@ -23,11 +29,20 @@ static void __fastcall hk_send(PacketSender* self, Packet* packet) {
         processCriticals(packet);
         processDerp(packet);
 
+        processAntiHunger(packet);
+
+        bool shouldSend = true;
+        processBlink(packet, shouldSend);
+        processCrasher(packet, shouldSend);
+        processFreecam(packet, shouldSend);
+        processFlyPacket(packet);
+
         // Log if enabled
         if (g_packetLoggerEnabled) {
             uint32_t id = static_cast<uint32_t>(packet->getId());
             edu::logChat("[Packet] ID: " + std::to_string(id));
         }
+        if (!shouldSend) return;
     }
     o_send(self, packet);
 }

@@ -160,3 +160,8 @@ struct AABBShapeComponent : IEntityComponent {
     AABB mAABB;
     Vec2 mBBDim;
 };
+
+struct BlockMovementSlowdownMultiplierComponent : IEntityComponent {
+    static constexpr hat::fixed_string type_name = "struct BlockMovementSlowdownMultiplierComponent";
+    Vec3 mMultiplier;
+};

@@ -168,8 +168,13 @@ static void initImGui(IDXGISwapChain* sc) {
     g_imgui = true;
 }
 
+static bool g_shuttingDown = false;
+
 static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
-    if (g_disable) return oPresent(sc, sync, flags);
+    if (g_shuttingDown || g_disable) {
+        if (oPresent) return oPresent(sc, sync, flags);
+        return E_FAIL;
+    }
     initImGui(sc);
     if (!g_imgui) return oPresent(sc, sync, flags);
 
@@ -260,6 +265,9 @@ void tryLazyInit() {
 bool installSwapChainHook() { tryLazyInit(); return g_installed; }
 
 void removeSwapChainHook() {
+    g_shuttingDown = true;
+    Sleep(50);
+
     if (g_origWndProc && g_hwnd)
         SetWindowLongPtrA(g_hwnd, GWLP_WNDPROC, (LONG_PTR)g_origWndProc);
     if (g_imgui) {
@@ -268,9 +276,23 @@ void removeSwapChainHook() {
         ImGui::DestroyContext();
     }
     cleanupFrames();
-    if (g_d3d11on12) g_d3d11on12->Release();
-    if (g_d3d11Context) g_d3d11Context->Release();
-    if (g_d3d11Device) g_d3d11Device->Release();
+    if (g_d3d11on12) { g_d3d11on12->Release(); g_d3d11on12 = nullptr; }
+    if (g_d3d11Context) { g_d3d11Context->Release(); g_d3d11Context = nullptr; }
+    if (g_d3d11Device) { g_d3d11Device->Release(); g_d3d11Device = nullptr; }
+
+    kiero::shutdown();
+
+    oPresent = nullptr;
+    oResizeBuffers = nullptr;
+    oExecuteCommandLists = nullptr;
+    g_cmdQueue = nullptr;
+    g_origWndProc = nullptr;
+    g_hwnd = nullptr;
+    g_imgui = false;
+    g_initFailed = false;
+    g_isD3D12 = false;
+    g_welcomed = false;
+    g_installed = false;
 }
 
 } // namespace edu::rendering

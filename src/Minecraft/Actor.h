@@ -29,6 +29,10 @@ public:
         edu::callVFunc<241, void(const LayeredAbilities&)>(this, abilities);
     }
 
+    float causeFallDamageToActor(float distance, float multiplier) {
+        return edu::callVFunc<92, float(float, float)>(this, distance, multiplier);
+    }
+
     void displayClientMessage(const std::string& message, std::optional<std::string> filtered = std::nullopt) {
         edu::callVFunc<199, void(const std::string&, std::optional<std::string>)>(this, message, filtered);
     }
