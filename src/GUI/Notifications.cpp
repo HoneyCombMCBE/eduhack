@@ -15,6 +15,8 @@ struct Notification {
     std::string text;
     bool finished = false;
     bool arrived = false;
+    float width = 0;
+    bool firstTime = true;
     float textWidth = 0.f;
     float textHeight = 0.f;
     std::chrono::steady_clock::time_point time = std::chrono::steady_clock::now();
