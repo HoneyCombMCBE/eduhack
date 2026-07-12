@@ -3,8 +3,9 @@
 namespace edu::features {
 
 extern bool g_criticalsEnabled;
-extern int g_criticalsMode; // 0 = Sentinel (full, for remote server), 1 = Safe (no jump flags, for hosting)
+extern int g_criticalsMode;
+extern int g_criticalsRange;
 void toggleCriticals();
-void processCriticals(void* packet);
+void processCriticals(void* packet, void* localPlayer);
 
 } // namespace edu::features

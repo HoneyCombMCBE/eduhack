@@ -23,10 +23,11 @@ static SendFn o_send = nullptr;
 static void* g_sendTarget = nullptr;
 
 static void __fastcall hk_send(PacketSender* self, Packet* packet) {
+    auto* localPlayer = getClientInstance()->getLocalPlayer();
     if (packet) {
         // Dispatch to packet-based modules
         processNoFall(packet);
-        processCriticals(packet);
+        processCriticals(packet, localPlayer);
         processDerp(packet);
 
         processAntiHunger(packet);

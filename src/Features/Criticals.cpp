@@ -1,11 +1,14 @@
 #include "Criticals.h"
 #include "../Minecraft/PlayerAuthInputPacket.h"
 #include "../Minecraft/Packet.h"
+#include "../Minecraft/Actor.h"
+#include "../Minecraft/Components.h"
 
 namespace edu::features {
 
 bool g_criticalsEnabled = false;
 int g_criticalsMode = 0; // 0 = Sentinel, 1 = Safe
+int g_criticalsRange = 5;
 
 void toggleCriticals() {
     g_criticalsEnabled = !g_criticalsEnabled;
@@ -17,8 +20,8 @@ static CritState s_state = CritState::START;
 static float s_prevPosY = 0.f;
 static bool s_hasPrevPos = false;
 
-void processCriticals(void* rawPacket) {
-    if (!g_criticalsEnabled) {
+void processCriticals(void* rawPacket, void* localPlayer) {
+    if (!g_criticalsEnabled || !localPlayer) {
         s_state = CritState::START;
         s_hasPrevPos = false;
         return;
@@ -30,8 +33,44 @@ void processCriticals(void* rawPacket) {
     auto* paip = reinterpret_cast<PlayerAuthInputPacket*>(rawPacket);
     float curY = paip->mPos().y;
 
-    // Only apply when player is on flat ground (Y unchanged)
-    if (s_hasPrevPos && curY == s_prevPosY) {
+    float nearEntityDist = 999.f;
+
+    auto* actor = reinterpret_cast<Actor*>(localPlayer);
+    auto& ctx = actor->getEntity();
+    auto* sv = ctx.tryGetComponent<StateVectorComponent>();
+    if (!sv) return;
+
+    auto& reg = ctx.enttRegistry;
+    auto view = reg.view<ActorOwnerComponent, StateVectorComponent>();
+
+    std::vector<Actor*> targets;
+    float closestDist = static_cast<float>(g_criticalsRange);
+
+    for (auto ent : view) {
+        auto& aoc = view.get<ActorOwnerComponent>(ent);
+        if (!aoc.mActor || aoc.mActor.get() == actor) continue;
+
+        auto* targetActor = aoc.mActor.get();
+        auto& entCtx = targetActor->getEntity();
+
+        auto* hc = entCtx.tryGetComponent<HealthComponent>();
+        if (hc && hc->health <= 0) continue;
+
+        auto& entSv = view.get<StateVectorComponent>(ent);
+        float dx = entSv.pos.x - sv->pos.x;
+        float dy = entSv.pos.y - sv->pos.y;
+        float dz = entSv.pos.z - sv->pos.z;
+        float dist = std::sqrt(dx*dx + dy*dy + dz*dz);
+
+        if (dist < closestDist) {
+            nearEntityDist = dist;
+            targets.push_back(targetActor);
+        }
+    }
+
+    if (targets.empty()) return;
+
+    if (s_hasPrevPos && curY == s_prevPosY && nearEntityDist < g_criticalsRange) {
 
         bool sendJumping = (g_criticalsMode == 0); // Sentinel: send jump flags
 

@@ -55,6 +55,7 @@ static DWORD WINAPI init(LPVOID) {
     features::g_noFallMode = 0;
     features::g_criticalsEnabled = false;
     features::g_criticalsMode = 0;
+    features::g_criticalsRange = 5;
     features::g_derpEnabled = false;
     features::g_noSlowEnabled = false;
     features::g_killAuraRange = 20;
@@ -105,7 +106,7 @@ static DWORD WINAPI init(LPVOID) {
         range.type = edu::SettingType::Slider;
         range.selected = &features::g_killAuraRange;
         range.min = 1;
-        range.max = 50;
+        range.max = 15;
         range.step = 1;
 
         edu::ModuleSetting delay;
@@ -182,9 +183,17 @@ static DWORD WINAPI init(LPVOID) {
         critMode.options = {"Sentinel", "Safe"};
         critMode.selected = &features::g_criticalsMode;
 
+        edu::ModuleSetting range;
+        range.name = "Range";
+        range.type = edu::SettingType::Slider;
+        range.selected = &features::g_criticalsRange;
+        range.min = 1;
+        range.max = 15;
+        range.step = 1;
+
         registerModule("Criticals", "Always deal critical hits", "Combat",
                        &features::g_criticalsEnabled, []{ features::toggleCriticals(); features::installPacketSendHook(); },
-                       {critMode});
+                       {critMode, range});
     }
 
     registerModule("Derp", "Spin head randomly server-side", "Misc",
