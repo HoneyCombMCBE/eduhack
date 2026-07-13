@@ -16,8 +16,6 @@ int g_killAuraRange = 20;
 int g_killAuraDelay = 2;
 int g_killAuraMulti = 0;
 int g_killAuraTargets = 0; // 0 = All, 1 = Players, 2 = Mobs
-int g_killAuraFilterAlive = 1;
-
 void toggleKillAura() { g_killAuraEnabled = !g_killAuraEnabled; }
 
 void tickKillAura(void* localPlayer) {
@@ -46,10 +44,7 @@ void tickKillAura(void* localPlayer) {
         auto* targetActor = aoc.mActor.get();
         auto& entCtx = targetActor->getEntity();
 
-        // 1. Skip dead entities
-        if (g_killAuraFilterAlive == 1) {
-            if (targetActor->getHealth() <= 0.f) continue;
-        }
+
 
         // 2. Filter targets: 0 = All, 1 = Players Only (has AbilitiesComponent), 2 = Mobs Only (no AbilitiesComponent)
         bool isTargetPlayer = entCtx.hasComponent<AbilitiesComponent>();

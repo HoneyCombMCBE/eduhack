@@ -57,14 +57,12 @@ static DWORD WINAPI init(LPVOID) {
     features::g_criticalsEnabled = false;
     features::g_criticalsMode = 0;
     features::g_criticalsRange = 5;
-    features::g_criticalsFilterAlive = 1;
     features::g_derpEnabled = false;
     features::g_noSlowEnabled = false;
     features::g_killAuraRange = 20;
     features::g_killAuraDelay = 2;
     features::g_killAuraMulti = 0;
     features::g_killAuraTargets = 0;
-    features::g_killAuraFilterAlive = 1;
     edu::features::g_antiHungerEnabled = false;
     features::g_blinkEnabled = false;
     features::g_blinkMode = 0;
@@ -132,15 +130,9 @@ static DWORD WINAPI init(LPVOID) {
         targets.options = {"All", "Players", "Mobs"};
         targets.selected = &features::g_killAuraTargets;
 
-        edu::ModuleSetting filterAlive;
-        filterAlive.name = "Filter Alive";
-        filterAlive.type = edu::SettingType::Dropdown;
-        filterAlive.options = {"Off", "On"};
-        filterAlive.selected = &features::g_killAuraFilterAlive;
-
         registerModule("KillAura", "Attack nearby entities", "Combat",
                        &features::g_killAuraEnabled, []{ features::toggleKillAura(); },
-                       {range, delay, multi, targets, filterAlive});
+                       {range, delay, multi, targets});
     }
 
     registerModule("ArrayList", "Show enabled modules list", "Render",
@@ -200,15 +192,9 @@ static DWORD WINAPI init(LPVOID) {
         range.max = 15;
         range.step = 1;
 
-        edu::ModuleSetting filterAlive;
-        filterAlive.name = "Filter Alive";
-        filterAlive.type = edu::SettingType::Dropdown;
-        filterAlive.options = {"Off", "On"};
-        filterAlive.selected = &features::g_criticalsFilterAlive;
-
         registerModule("Criticals", "Always deal critical hits", "Combat",
                        &features::g_criticalsEnabled, []{ features::toggleCriticals(); features::installPacketSendHook(); },
-                       {critMode, range, filterAlive});
+                       {critMode, range});
     }
 
     registerModule("Derp", "Spin head randomly server-side", "Misc",
