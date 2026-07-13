@@ -9,6 +9,7 @@ namespace edu::features {
 bool g_criticalsEnabled = false;
 int g_criticalsMode = 0; // 0 = Sentinel, 1 = Safe
 int g_criticalsRange = 5;
+int g_criticalsFilterAlive = 1;
 
 void toggleCriticals() {
     g_criticalsEnabled = !g_criticalsEnabled;
@@ -51,10 +52,10 @@ void processCriticals(void* rawPacket, void* localPlayer) {
         if (!aoc.mActor || aoc.mActor.get() == actor) continue;
 
         auto* targetActor = aoc.mActor.get();
-        auto& entCtx = targetActor->getEntity();
 
-        auto* hc = entCtx.tryGetComponent<HealthComponent>();
-        if (hc && hc->health <= 0) continue;
+        if (g_criticalsFilterAlive == 1) {
+            if (targetActor->getHealth() <= 0.f) continue;
+        }
 
         auto& entSv = view.get<StateVectorComponent>(ent);
         float dx = entSv.pos.x - sv->pos.x;

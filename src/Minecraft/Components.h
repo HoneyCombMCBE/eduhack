@@ -1,6 +1,8 @@
 #pragma once
 #include "Entity.h"
 #include <libhat/fixed_string.hpp>
+#include <unordered_map>
+#include <vector>
 
 struct Vec2 {
     float x, y;
@@ -54,10 +56,22 @@ struct ActorIdentifierComponent : IEntityComponent {
     uintptr_t data[8];
 };
 
-struct HealthComponent : IEntityComponent {
-    static constexpr hat::fixed_string type_name = "struct HealthComponent";
-    int health;
-    int maxHealth;
+struct AttributeInstance {
+    void* vtable;
+    char pad[0x74];
+    float mMinimumValue;
+    float mMaximumValue;
+    float mCurrentValue;
+};
+
+struct BaseAttributeMap {
+    std::unordered_map<int, AttributeInstance> mAttributes;
+    std::vector<uint64_t> mDirtyAttributes;
+};
+
+struct AttributesComponent : IEntityComponent {
+    static constexpr hat::fixed_string type_name = "struct AttributesComponent";
+    BaseAttributeMap mBaseAttributeMap;
 };
 
 struct RuntimeIDComponent : IEntityComponent {

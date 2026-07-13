@@ -7,6 +7,7 @@ extern int g_killAuraRange;
 extern int g_killAuraDelay;
 extern int g_killAuraMulti;
 extern int g_killAuraTargets;
+extern int g_killAuraFilterAlive;
 void toggleKillAura();
 void tickKillAura(void* localPlayer);
 

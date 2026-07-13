@@ -52,4 +52,24 @@ public:
             sv->posDelta = {0, 0, 0};
         }
     }
+
+    float getHealth() {
+        auto& ctx = getEntity();
+        auto* attrs = ctx.tryGetComponent<AttributesComponent>();
+        if (!attrs) return 0.f;
+        auto& map = attrs->mBaseAttributeMap.mAttributes;
+        auto it = map.find(7); // 7 = Health
+        if (it == map.end()) return 0.f;
+        return it->second.mCurrentValue;
+    }
+
+    float getMaxHealth() {
+        auto& ctx = getEntity();
+        auto* attrs = ctx.tryGetComponent<AttributesComponent>();
+        if (!attrs) return 0.f;
+        auto& map = attrs->mBaseAttributeMap.mAttributes;
+        auto it = map.find(7); // 7 = Health
+        if (it == map.end()) return 0.f;
+        return it->second.mMaximumValue;
+    }
 };
