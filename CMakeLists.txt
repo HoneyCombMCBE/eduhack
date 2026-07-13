@@ -136,6 +136,7 @@ set(EDU_SOURCES
     src/Rendering/SwapChainHook.cpp
     src/GUI/ClickGUI.cpp
     src/GUI/Notifications.cpp
+    src/GUI/DevOverlay.cpp
 )
 
 add_library(eduhacksss SHARED

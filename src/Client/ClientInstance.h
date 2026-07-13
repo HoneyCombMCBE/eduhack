@@ -76,6 +76,10 @@ public:
     void* getProfanityContext() {
         return callVFunc<362, void*()>(this);
     }
+
+    void connectToThirdPartyServer(const std::string& ipAddress, int port) {
+        callVFunc<332, void(const std::string&, int)>(this, ipAddress, port);
+    }
 };
 
 } // namespace edu

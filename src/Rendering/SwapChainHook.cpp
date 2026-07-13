@@ -1,6 +1,7 @@
 #include "SwapChainHook.h"
 #include "../GUI/ClickGUI.h"
 #include "../GUI/Notifications.h"
+#include "../GUI/DevOverlay.h"
 #include "../Features/CoordsDisplay.h"
 #include "../Features/ArrayList.h"
 #include "../Features/Watermark.h"
@@ -52,7 +53,10 @@ static ResizeBuffersFn       oResizeBuffers = nullptr;
 static ExecuteCommandListsFn oExecuteCommandLists = nullptr;
 
 static LRESULT CALLBACK hk_WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    if (gui::isOpen()) {
+    if (ImGui_ImplWin32_WndProcHandler(hwnd, msg, wp, lp))
+        return true;
+
+    if (gui::isOpen() || gui::devOverlay::isOpen()) {
         switch (msg) {
         case WM_KEYDOWN: case WM_KEYUP: case WM_SYSKEYDOWN: case WM_SYSKEYUP:
         case WM_CHAR: case WM_UNICHAR:
@@ -213,9 +217,15 @@ static HRESULT hk_Present(IDXGISwapChain* sc, UINT sync, UINT flags) {
         bool escNow = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
         if (escNow && !escWas && gui::isOpen()) gui::toggle();
         escWas = escNow;
+
+        static bool insertWas = false;
+        bool insertNow = (GetAsyncKeyState(VK_INSERT) & 0x8000) != 0;
+        if (insertNow && !insertWas) gui::devOverlay::toggle();
+        insertWas = insertNow;
     }
 
     gui::render();
+    gui::devOverlay::render();
     features::renderCoords();
     features::renderArrayList();
     features::renderWatermark();
